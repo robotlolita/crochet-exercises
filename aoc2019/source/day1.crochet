@@ -20,10 +20,10 @@ command day1-component mass -> float = self.mass;
 command day1-component fuel -> float do
   (self.mass / 3.0) floor - 2.0;
 test
-  assert new day1-component(12.0) fuel =:= 2.0;
-  assert new day1-component(14.0) fuel =:= 2.0;
-  assert new day1-component(1_969.0) fuel =:= 654.0;
-  assert new day1-component(100_756.0) fuel =:= 33_583.0;
+  assert new day1-component(12.0) fuel === 2.0;
+  assert new day1-component(14.0) fuel === 2.0;
+  assert new day1-component(1_969.0) fuel === 654.0;
+  assert new day1-component(100_756.0) fuel === 33_583.0;
 end
 
 //
@@ -34,9 +34,9 @@ command day1-component full-fuel -> float do
     | take-while: (_ >= 0.0)
     | sum;
 test
-  assert new day1-component(14.0) full-fuel =:= 2.0;
-  assert new day1-component(1_969.0) full-fuel =:= 966.0;
-  assert new day1-component(100_756.0) full-fuel =:= 50_346.0;
+  assert new day1-component(14.0) full-fuel === 2.0;
+  assert new day1-component(1_969.0) full-fuel === 966.0;
+  assert new day1-component(100_756.0) full-fuel === 50_346.0;
 end
 
 //
@@ -47,13 +47,13 @@ command day1 parse-fuel: (Input is text) -> stream<float> do
     | map: (_ value-or-panic: "Invalid float");
 test
   assert ((day1 parse-fuel: "100\n200.0\r10.1\r\n20.2") as list)
-    =:= [
+    === [
           100.0,
           200.0,
           10.1,
           20.2,
         ];
-  assert ((day1 parse-fuel: "") as list) =:= [];
+  assert ((day1 parse-fuel: "") as list) === [];
 end
 
 //
