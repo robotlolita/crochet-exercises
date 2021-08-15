@@ -1,0 +1,190 @@
+% crochet
+
+singleton day1;
+type day1-component(mass is float);
+type day1-rocket(components is list<day1-component>);
+
+//
+command day1 component: (Mass is float) =
+  new day1-component(Mass);
+
+//
+implement equality for day1-component;
+command (A is day1-component) === (B is day1-component) =
+  A.mass === B.mass;
+
+//
+command day1-component mass -> float = self.mass;
+
+//
+command day1-component fuel -> float do
+  (self.mass / 3.0) floor - 2.0;
+test
+  assert new day1-component(12.0) fuel =:= 2.0;
+  assert new day1-component(14.0) fuel =:= 2.0;
+  assert new day1-component(1_969.0) fuel =:= 654.0;
+  assert new day1-component(100_756.0) fuel =:= 33_583.0;
+end
+
+//
+command day1-component full-fuel -> float do
+  #stream from: self iterate: { X in new day1-component(X fuel) }
+    | drop: 1
+    | map: (_ mass)
+    | take-while: (_ >= 0.0)
+    | sum;
+test
+  assert new day1-component(14.0) full-fuel =:= 2.0;
+  assert new day1-component(1_969.0) full-fuel =:= 966.0;
+  assert new day1-component(100_756.0) full-fuel =:= 50_346.0;
+end
+
+//
+command day1 parse-fuel: (Input is text) -> stream<float> do
+  Input lines as stream
+    | remove-if: { X in X trim is-empty }
+    | map: (#float try-parse: _)
+    | map: (_ value-or-panic: "Invalid float");
+test
+  assert ((day1 parse-fuel: "100\n200.0\r10.1\r\n20.2") as list)
+    =:= [
+          100.0,
+          200.0,
+          10.1,
+          20.2,
+        ];
+  assert ((day1 parse-fuel: "") as list) =:= [];
+end
+
+//
+command day1 rocket: (Components is list<float>) =
+  new day1-rocket(Components);
+
+//
+command day1-rocket fuel =
+  self.components map: (_ full-fuel)
+    | sum;
+
+//
+command day1 run-part1 do
+  day1 parse-fuel: day1 input
+    | map: (day1 component: _)
+    | map: (_ fuel)
+    | sum;
+test
+  assert day1 run-part1 === 3_520_097;
+end
+
+//
+command day1 run-part2 do    
+  let Components = day1 parse-fuel: day1 input
+                    | map: (day1 component: _)
+                    |> _ as list;
+  let Rocket = day1 rocket: Components;
+  Rocket fuel;
+test
+  assert day1 run-part2 === 5_277_255;
+end
+
+//
+command day1 input =
+  "109024
+   137172
+   80445
+   80044
+   107913
+   108989
+   59638
+   120780
+   139262
+   139395
+   56534
+   129398
+   101732
+   101212
+   142352
+   123971
+   75207
+   121384
+   145719
+   66925
+   71782
+   102129
+   83220
+   147045
+   99092
+   132909
+   114504
+   141549
+   99552
+   128422
+   134505
+   58295
+   142325
+   107896
+   66181
+   86080
+   71393
+   58839
+   143851
+   149540
+   108206
+   68353
+   123196
+   61256
+   83896
+   122756
+   133066
+   138085
+   129872
+   63965
+   105520
+   141513
+   90305
+   92651
+   113284
+   66895
+   72068
+   144011
+   82963
+   136919
+   111222
+   54134
+   82662
+   107612
+   87366
+   131791
+   144708
+   116894
+   142784
+   52299
+   138414
+   56330
+   80146
+   73422
+   60308
+   125678
+   95910
+   116374
+   136257
+   100387
+   114960
+   62651
+   102946
+   56912
+   91399
+   146005
+   147222
+   125962
+   129805
+   101208
+   67998
+   85297
+   117332
+   101967
+   94339
+   130878
+   79396
+   140312
+   147746
+   136975";
