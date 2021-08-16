@@ -1,0 +1,142 @@
+% crochet
+
+open crochet.debug;
+
+singleton day2;
+type day2-frame(memory is list<integer>, instruction is integer);
+
+// -- Instruction modelling
+abstract day2-op;
+type day2-op-add(left is integer, right is integer, out is integer) is day2-op;
+type day2-op-multiply(left is integer, right is integer, out is integer) is day2-op;
+type day2-op-data(value is integer) is day2-op;
+singleton day2-op-halt is day2-op;
+
+command day2-op-add size = 4;
+command day2-op-multiply size = 4;
+command day2-op-data size = 1;
+command day2-op-halt size = 1;
+
+command day2-frame opcode = self memory-at: 0;
+command day2-frame noun = self memory-at: 1;
+command day2-frame verb = self memory-at: 2;
+
+command day2-frame memory = self.memory;
+command day2-frame instruction = self.instruction;
+
+// -- Program behaviour
+command day2-frame memory-at: (Index is integer) =
+  self memory at: (Index + 1);
+
+command day2-frame memory-at: (Index is integer) put: Value =
+  self memory at: (Index + 1) put: Value;
+
+command day2-frame at: (Index is integer) do
+  let Op = self memory-at: Index;
+  condition
+    when Op === 1 => self make-add: Index;
+    when Op === 2 => self make-multiply: Index;
+    when Op === 99 => day2-op-halt;
+    always => new day2-op-data(Op);
+  end
+end
+
+command day2-frame at: (Index is integer) put: (Value is integer) do
+  new day2-frame(self memory-at: Index put: Value, self.instruction);
+end
+
+command day2-frame three-address: (Index is integer) do
+  [
+    first -> self memory-at: (Index + 1),
+    second -> self memory-at: (Index + 2),
+    output -> self memory-at: (Index + 3)
+  ]
+end
+
+command day2-frame make-add: (Index is integer) do
+  let Addresses = self three-address: Index;
+  new day2-op-add(
+    self memory-at: Addresses.first,
+    self memory-at: Addresses.second,
+    Addresses.output
+  );
+end
+
+command day2-frame make-multiply: (Index is integer) do
+  let Addresses = self three-address: Index;
+  new day2-op-multiply(
+    self memory-at: Addresses.first,
+    self memory-at: Addresses.second,
+    Addresses.output
+  );
+end
+
+// -- Interpretation
+command day2-frame interpret do
+  self at: self instruction
+    | evaluate: self;
+test
+  assert new day2-frame([1, 0, 0, 0, 99], 0) interpret memory
+    === [2, 0, 0, 0, 99];
+
+  assert new day2-frame([2, 3, 0, 3, 99], 0) interpret memory
+    === [2, 3, 0, 6, 99];
+
+  assert new day2-frame([2, 4, 4, 5, 99, 0], 0) interpret memory
+    === [2, 4, 4, 5, 99, 9801];
+
+  assert new day2-frame([1, 1, 1, 4, 99, 5, 6, 0, 99], 0) interpret memory
+    === [30, 1, 1, 4, 2, 5, 6, 0, 99];
+end
+
+command day2-frame jump: (Offset is integer) do
+  new day2-frame(self memory, self instruction + Offset);
+end
+
+command day2-op-add evaluate: (Frame is day2-frame) do
+  Frame at: self.out put: (self.left + self.right)
+    | jump: self size
+    | interpret;
+end
+
+command day2-op-multiply evaluate: (Frame is day2-frame) do
+  Frame at: self.out put: (self.left * self.right)
+    | jump: self size
+    | interpret;
+end
+
+command day2-op-halt evaluate: (Frame is day2-frame) do
+  Frame;
+end
+
+// -- Other
+command day2-frame fix-1202 =
+  self at: 1 put: 12
+    |  at: 2 put: 2;
+
+// -- Main
+command day2 parse-instructions: (Input is text) do
+  let Tree = (force grammar) parse: Input rule: "File";
+  condition
+    when Tree is error => panic: Tree reason tag: "syntax-error";
+    when Tree is ok => (force to-ast) transform: Tree value;
+  end
+end
+
+command day2 make-frame: (Memory is memory) do
+  let To-integer = { X in #integer try-parse: X.value | value-or-panic: "not an integer" };
+  new day2-frame(Memory.cells map: To-integer, 0);
+end
+
+command day2 part1 do
+  self parse-instructions: self input
+    |> day2 make-frame: _
+    |> _ fix-1202
+    |> _ interpret 
+    |> _ opcode
+test
+  assert day2 part1 === 5_482_655;
+end
+
+command day2 input =
+  "1,0,0,3,1,1,2,3,1,3,4,3,1,5,0,3,2,13,1,19,1,10,19,23,1,6,23,27,1,5,27,31,1,10,31,35,2,10,35,39,1,39,5,43,2,43,6,47,2,9,47,51,1,51,5,55,1,5,55,59,2,10,59,63,1,5,63,67,1,67,10,71,2,6,71,75,2,6,75,79,1,5,79,83,2,6,83,87,2,13,87,91,1,91,6,95,2,13,95,99,1,99,5,103,2,103,10,107,1,9,107,111,1,111,6,115,1,115,2,119,1,119,10,0,99,2,14,0,0";

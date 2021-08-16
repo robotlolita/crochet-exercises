@@ -2,7 +2,8 @@
 
 command main: (Args is list) do
   condition
-    when Args first === "1.1" => day1 run-part1;
-    when Args first === "1.2" => day1 run-part2;
+    when Args first === "1.1" => day1 part1;
+    when Args first === "1.2" => day1 part2;
+    when Args first === "2.1" => day2 part1;
   end
 end

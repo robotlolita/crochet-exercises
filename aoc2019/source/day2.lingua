@@ -1,0 +1,11 @@
+type int(value: text)
+type memory(cells: int[])
+
+grammar Day2 : memory {
+  File =
+    | Cs:ListOf<Cell, ","> end -> memory(Cs)
+
+  Cell = x:cell -> int(x)
+
+  token cell = digit+
+}

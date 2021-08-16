@@ -66,7 +66,7 @@ command day1-rocket fuel =
     | sum;
 
 //
-command day1 run-part1 do
+command day1 part1 do
   day1 parse-fuel: day1 input
     | map: (day1 component: _)
     | map: (_ fuel)
@@ -76,7 +76,7 @@ test
 end
 
 //
-command day1 run-part2 do    
+command day1 part2 do    
   let Components = day1 parse-fuel: day1 input
                     | map: (day1 component: _)
                     |> _ as list;
