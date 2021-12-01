@@ -1,0 +1,75 @@
+% crochet
+
+open crochet.debug;
+
+singleton day1;
+
+
+/// Single measurement context.
+///
+/// This handles measurement contexts that considers only a single previous
+/// value when performing the "increases" analysis.
+type measurement-context(
+  global previous, // nothing or integer
+  global increases is integer,
+);
+
+implement equality for measurement-context;
+command measurement-context === (That is measurement-context) =
+  (self previous === That previous) and (self increases === That increases);
+
+command #measurement-context empty =
+  new measurement-context(nothing, 0);
+
+command measurement-context analyse: (Depth is integer) -> measurement-context do
+  condition
+    when self previous is nothing =>
+      new measurement-context(Depth, self increases);
+
+    when Depth > self previous =>
+      new measurement-context(Depth, self increases + 1);
+
+    otherwise =>
+      new measurement-context(Depth, self increases);
+  end
+test
+  assert (new measurement-context(nothing, 0) analyse: 3) === new measurement-context(3, 0);
+  assert (new measurement-context(3, 1) analyse: 5) === new measurement-context(5, 2);
+  assert (new measurement-context(5, 2) analyse: 3) === new measurement-context(3, 2);
+end
+
+
+command day1 analyse-depths: (Depths is list<integer>) -> measurement-context do
+  Depths fold-from: #measurement-context empty
+         with: (_ analyse: _);
+test
+  let Depths = [199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
+  assert (day1 analyse-depths: Depths) === new measurement-context(263, 7);
+end
+
+command day1 parse: (Input is text) -> list<integer> do
+  Input lines
+    | map: (_ trim)
+    | map: (#integer try-parse: _)
+    | map: (_ value-or-panic: "Not an integer");
+test
+  let Input = "199
+               200
+               208
+               210
+               200
+               207
+               240
+               269
+               260
+               263";
+  assert (day1 parse: Input) === [199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
+end
+
+command day1 part1 do
+  day1 parse: day1 input
+    |> day1 analyse-depths: _
+    |> _ increases;
+test
+  assert day1 part1 === 1_301;
+end
