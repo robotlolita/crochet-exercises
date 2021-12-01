@@ -1,0 +1,11 @@
+{
+  "name": "me.robotlolita.aoc2021",
+  "target": "*",
+  "native_sources": [],
+  "sources": ["source/day1.crochet", "source/day1-input.crochet"],
+  "dependencies": ["crochet.core", "crochet.debug"],
+  "capabilities": {
+    "requires": [],
+    "provides": []
+  }
+}
