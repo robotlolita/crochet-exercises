@@ -1,0 +1,10 @@
+% crochet
+
+command list drop: (N is integer)
+requires non-negative :: N >= 0
+do
+  condition
+    when N === 0 => self;
+    otherwise => self rest drop: (N - 1);
+  end
+end

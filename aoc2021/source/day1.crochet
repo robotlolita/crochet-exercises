@@ -1,52 +1,231 @@
 % crochet
 
+// In this puzzle we're first tasked with computing the number of times
+// we see an increase from a previous value in a sequence of numbers.
+// But the second part asks for the number of times we see an increase
+// of the sum in a three-value sliding window in this same sequence.
+//
+// The first part lends itself nicely to a fold through the sequence,
+// as there's only one piece of information to keep track of. The second
+// part can be also thought of as a fold, but with a slightly different
+// way of keeping track of the state as you go along---since you need to
+// consider more of the input before making a decision.
+//
+// Still, these are essentially the same operation, and they only really
+// differ on the shape of the context you need to keep track of when
+// folding through this sequence. So that's the approach this solution
+// takes: there's a "measurement-context" type which is used to keep
+// track of the state during the fold.
+//
+// Where it does take a slightly unexpected direction, perhaps, is that
+// instead of having a separate type for part 1 and part 2 contexts---one
+// could argue they have different *semantics*---we try to generalise
+// the idea of "previous state" with windows of values.
+//
+// These windows have a capacity---hence they can hold up to N values---,
+// and they have a "delay". This delay has the same semantics as "drop"ping
+// the start of a stream---we'll ignore up to N values before we start
+// adding values to the window.
+//
+// The context then keeps a number of these windows along, and at each
+// turn adds the value to all of them. Once the first two windows are
+// "full"---once we've added enough values to fill their capacity---,
+// we perform the analysis to decide whether the windows have increased
+// or not. We also move our "previous window" pointer from the first one
+// to the second one---here, the first window is "repurposed", or added
+// with an empty set of values to the end of the contexts' windows, so
+// it can collect new values to be compared later.
+//
+// This allows the same behaviour to govern both part 1 and part 2, and
+// let them differ only in the "capacity" of these windows: part 1 uses
+// windows with the capacity of a single item, whereas part 2 uses windows
+// with a three-value capacity.
+
 open crochet.debug;
 
 singleton day1;
 
 
-/// Single measurement context.
-///
-/// This handles measurement contexts that considers only a single previous
-/// value when performing the "increases" analysis.
-type measurement-context(
-  global previous, // nothing or integer
+// -- Windows of values
+type d1-window(
+  global values is list<integer>,
+  global capacity is integer,
+  global delay is integer,
+);
+
+
+command #d1-window capacity: (Capacity is integer) delay: (Delay is integer) =
+  new d1-window([], Capacity, Delay);
+
+
+command d1-window add: (Value is integer) do
+  condition
+    when self delay > 0 =>
+      new d1-window(self values, self capacity, self delay - 1);
+    
+    when self values count >= self capacity =>
+      self;
+
+    otherwise do
+      new d1-window(self values append: Value, self capacity, self delay);
+    end
+  end
+test
+  assert (new d1-window([], 1, 1) add: 3) === new d1-window([], 1, 0);
+  assert (new d1-window([], 1, 0) add: 3) === new d1-window([3], 1, 0);
+  assert (new d1-window([3], 1, 0) add: 4) === new d1-window([3], 1, 0);
+end
+
+
+command d1-window repurpose =
+  new d1-window([], self capacity, 0);
+
+
+implement equality for d1-window;
+command d1-window === (That is d1-window) =
+  (self values === That values) and
+  (self capacity === That capacity) and
+  (self delay === That delay);
+
+
+command d1-window is-full =
+  self values count === self capacity;
+
+
+command d1-window sum =
+  self values sum;
+  
+
+// -- Measurement context
+type d1-measurement-context(
+  global windows is list<d1-window>,
   global increases is integer,
 );
 
-implement equality for measurement-context;
-command measurement-context === (That is measurement-context) =
-  (self previous === That previous) and (self increases === That increases);
 
-command #measurement-context empty =
-  new measurement-context(nothing, 0);
+implement equality for d1-measurement-context;
+command d1-measurement-context === (That is d1-measurement-context) =
+  (self windows === That windows) and (self increases === That increases);
 
-command measurement-context analyse: (Depth is integer) -> measurement-context do
+
+command #d1-measurement-context with-windows: (Windows is list<d1-window>) =
+  new d1-measurement-context(Windows, 0);
+  
+
+command #d1-measurement-context capacity: (Capacity is integer) do
+  let Windows =
+    for Delay in 0 to: Capacity do
+      #d1-window capacity: Capacity delay: Delay;
+    end;
+  #d1-measurement-context with-windows: Windows;
+test
+  assert (#d1-measurement-context capacity: 3) ===
+    new d1-measurement-context(
+      [
+        #d1-window capacity: 3 delay: 0,
+        #d1-window capacity: 3 delay: 1,
+        #d1-window capacity: 3 delay: 2,
+        #d1-window capacity: 3 delay: 3,
+      ],
+      0
+    );
+end
+
+
+command d1-measurement-context analyse: (Depth is integer) -> d1-measurement-context do
+  let Windows = self windows map: (_ add: Depth);
+  let First = Windows at: 1;
+  let Second = Windows at: 2;
   condition
-    when self previous is nothing =>
-      new measurement-context(Depth, self increases);
+    when First is-full and Second is-full and (Second sum > First sum) =>
+      new d1-measurement-context(Windows drop: 1 | append: First repurpose, self increases + 1);
 
-    when Depth > self previous =>
-      new measurement-context(Depth, self increases + 1);
+    when First is-full and Second is-full =>
+      new d1-measurement-context(Windows drop: 1 | append: First repurpose, self increases);
 
     otherwise =>
-      new measurement-context(Depth, self increases);
+      new d1-measurement-context(Windows, self increases);
   end
 test
-  assert (new measurement-context(nothing, 0) analyse: 3) === new measurement-context(3, 0);
-  assert (new measurement-context(3, 1) analyse: 5) === new measurement-context(5, 2);
-  assert (new measurement-context(5, 2) analyse: 3) === new measurement-context(3, 2);
+  let M1 = #d1-measurement-context capacity: 1;
+  let M2 = #d1-measurement-context capacity: 2;
+
+  assert (M1 analyse: 3) === new d1-measurement-context(
+    [
+      new d1-window([3], 1, 0),
+      new d1-window([], 1, 0),
+    ],
+    0
+  );
+
+  assert (M1 analyse: 3 | analyse: 5) === new d1-measurement-context(
+    [
+      new d1-window([5], 1, 0),
+      new d1-window([], 1, 0),
+    ],
+    1
+  );
+
+  assert (M1 analyse: 3 | analyse: 5 | analyse: 1) === new d1-measurement-context(
+    [
+      new d1-window([1], 1, 0),
+      new d1-window([], 1, 0),
+    ],
+    1
+  );
+
+  assert (M2 analyse: 3) === new d1-measurement-context(
+    [
+      new d1-window([3], 2, 0),
+      new d1-window([], 2, 0),
+      new d1-window([], 2, 1),
+    ],
+    0
+  );
+
+  assert (M2 analyse: 3 | analyse: 5) === new d1-measurement-context(
+    [
+      new d1-window([3, 5], 2, 0),
+      new d1-window([5], 2, 0),
+      new d1-window([], 2, 0),
+    ],
+    0
+  );
+
+  assert (M2 analyse: 3 | analyse: 5 | analyse: 8) === new d1-measurement-context(
+    [
+      new d1-window([5, 8], 2, 0),
+      new d1-window([8], 2, 0),
+      new d1-window([], 2, 0),
+    ],
+    1
+  );
+
+  assert (M2 analyse: 3 | analyse: 5 | analyse: 1) === new d1-measurement-context(
+    [
+      new d1-window([5, 1], 2, 0),
+      new d1-window([1], 2, 0),
+      new d1-window([], 2, 0),
+    ],
+    0
+  );
 end
 
 
-command day1 analyse-depths: (Depths is list<integer>) -> measurement-context do
-  Depths fold-from: #measurement-context empty
-         with: (_ analyse: _);
+command d1-measurement-context analyse-depths: (Depths is list<integer>) -> d1-measurement-context do
+  Depths fold-from: self with: (_ analyse: _);
 test
   let Depths = [199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
-  assert (day1 analyse-depths: Depths) === new measurement-context(263, 7);
+  
+  let D1 = #d1-measurement-context capacity: 1;
+  assert (D1 analyse-depths: Depths) increases === 7;
+
+  let D3 = #d1-measurement-context capacity: 3;
+  assert (D3 analyse-depths: Depths) increases === 5;
 end
 
+
+// -- Specific puzzle commands
 command day1 parse: (Input is text) -> list<integer> do
   Input lines
     | map: (_ trim)
@@ -66,10 +245,22 @@ test
   assert (day1 parse: Input) === [199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
 end
 
+
 command day1 part1 do
+  let Context = #d1-measurement-context capacity: 1;
   day1 parse: day1 input
-    |> day1 analyse-depths: _
+    |> Context analyse-depths: _
     |> _ increases;
 test
   assert day1 part1 === 1_301;
+end
+
+
+command day1 part2 do
+  let Context = #d1-measurement-context capacity: 3;
+  day1 parse: day1 input
+    |> Context analyse-depths: _
+    |> _ increases;
+test
+  assert day1 part2 === 1_346;
 end
