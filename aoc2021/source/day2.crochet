@@ -94,3 +94,51 @@ command day2 part1 do
 test
   assert day2 part1 === 1_746_616;
 end
+
+// -- Part 2 has a different evaluation semantics
+type d2-frame2(
+  global x is integer,
+  global aim is integer,
+  global depth is integer,
+);
+
+implement equality for d2-frame2;
+command d2-frame2 === (That is d2-frame2) =
+  (self x === That x) and
+  (self aim === That aim) and
+  (self depth === That depth);
+
+command d2-frame2 evaluate: (I is d2i-forward) =
+  new d2-frame2(self x + I value, self aim, self depth + (self aim * I value));
+
+command d2-frame2 evaluate: (I is d2i-down) =
+  new d2-frame2(self x, self aim + I value, self depth);
+
+command d2-frame2 evaluate: (I is d2i-up) =
+  new d2-frame2(self x, self aim - I value, self depth);
+
+command #d2-frame2 initial =
+  new d2-frame2(0, 0, 0);
+
+command d2-frame2 run: (Program is d2-program) do
+  Program instructions fold-from: self
+                       with: (_ evaluate: _)
+test
+  let Program = new d2-program([
+    new d2i-forward(5),
+    new d2i-down(5),
+    new d2i-forward(8),
+    new d2i-up(3),
+    new d2i-down(8),
+    new d2i-forward(2),
+  ]);
+  assert (#d2-frame2 initial run: Program) === new d2-frame2(15, 10, 60);
+end
+
+command day2 part2 do
+  let Program = day2 parse: day2 input;
+  let Frame = #d2-frame2 initial run: Program;
+  Frame x * Frame depth;
+test
+  assert day2 part2 === 1_741_971_043;
+end
