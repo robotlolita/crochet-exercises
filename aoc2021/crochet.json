@@ -5,9 +5,16 @@
   "sources": [
     "source/extensions/list.crochet",
     "source/day1.crochet",
-    "source/day1-input.crochet"
+    "source/day1-input.crochet",
+    "source/day2-grammar.lingua",
+    "source/day2.crochet",
+    "source/day2-input.crochet"
   ],
-  "dependencies": ["crochet.core", "crochet.debug"],
+  "dependencies": [
+    "crochet.core",
+    "crochet.debug",
+    "crochet.text.parsing.lingua"
+  ],
   "capabilities": {
     "requires": [],
     "provides": []

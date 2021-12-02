@@ -1,0 +1,20 @@
+type d2_node =
+  | forward(value: text)
+  | down(value: text)
+  | up(value: text)
+
+type d2_ast(instructions: d2_node[])
+
+grammar day2_grammar : d2_ast {
+  File =
+    | Xs:Instruction+ end -> d2_ast(Xs)
+
+  Instruction =
+    | kw<"forward"> n:number -> d2_node.forward(n)
+    | kw<"down"> n:number -> d2_node.down(n)
+    | kw<"up"> n:number -> d2_node.up(n)
+
+  token number = digit+
+
+  token kw<word> = word ~(letter | digit)
+}
