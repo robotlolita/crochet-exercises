@@ -1,5 +1,20 @@
 % crochet
 
+// This one is a pretty straight-forward interpreter, so there isn't
+// much of note. That said, the current version of Lingua (Crochet's
+// PEG DSL) is a pretty bare-bones prototype, which is roughly why
+// there's about 50 lines in addition to the PEG grammar that are all
+// "oh, right, we need to actually normalise the data Lingua gives us
+// so it's usable, since it won't reify numbers".
+//
+// There's also a lot of equality implementations here because, again,
+// the Crochet compiler is not generating these yet. (Yes, deriving WILL
+// come. Eventually).
+//
+// The only difference between part 1 and part 2 are the evaluation
+// semantics of the instructions, so there are different evaluation
+// frame types for each one.
+
 singleton day2;
 
 // -- Parsing woes (really, Lingua should be dealing with this aaaaaa)
