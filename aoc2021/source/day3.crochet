@@ -1,6 +1,29 @@
 % crochet
 
+// What. A. Pain.
+//
+// Okay, see, Crochet has *absolutely no way of dealing with binaries* right
+// now. You cannot parse binary-notation numbers into integers. And you
+// cannot get bits from a regular integer. So what this does is... well,
+// write a binary parser in Lingua and then keep those as persistent lists
+// of a "bit" type hierarchy.
+//
+// And then reinvent all bitwise operations, because of course.
+//
+// The mess in this module speaks more of my frustration than anything, though.
+// It could definitely be done in a prettier and less-verbose way. I did not
+// bother trying to figure out if there was a way of merging more passes.
+//
+// That said, this takes about 700ms in something that includes running a 
+// whole incremental packrat PEG parser on a sizeable input, creating a
+// fairly heavy AST for that, and running the Crochet program with a lot
+// of multi-method collisions (remember, dispatch is not yet optimised!)?
+// I'm surprised. I was expecting much worse.
+
 singleton day3;
+
+enum d3-target = d3t-most-common, d3t-least-common;
+
 
 // -- Parsing woes
 implement equality for d3-bit;
@@ -31,18 +54,20 @@ test
   ];
 end
 
+command d3-number as integer = day3 bits-to-decimal: self.bits;
+
 
 // -- Evaluation context woes
-type d3-context(
+type d3-pc-context(
   global zeroes is list<integer>,
   global ones is list<integer>,
 );
 
-implement equality for d3-context;
-command d3-context === (That is d3-context) =
+implement equality for d3-pc-context;
+command d3-pc-context === (That is d3-pc-context) =
   (self zeroes === That zeroes) and (self ones === That ones);
 
-command #d3-context size: (Size is integer)
+command #d3-pc-context size: (Size is integer)
 requires
   positive :: Size > 0
 ensures
@@ -50,31 +75,53 @@ ensures
   zeroed :: (return zeroes all: (_ === 0)) and (return ones all: (_ === 0))
 do
   let Zeroed = (1 to: Size) map: { _ in 0 };
-  new d3-context(Zeroed, Zeroed);
+  new d3-pc-context(Zeroed, Zeroed);
 test
-  assert (#d3-context size: 5) === new d3-context([0, 0, 0, 0, 0], [0, 0, 0, 0, 0]);
+  assert (#d3-pc-context size: 5) === new d3-pc-context([0, 0, 0, 0, 0], [0, 0, 0, 0, 0]);
 end
 
-command #d3-context from-input-shape: (Input is list<d3-number>)
+command #d3-pc-context from-input-shape: (Input is list<d3-number>)
 requires non-empty :: not Input is-empty
 do
-  #d3-context size: (Input first).bits count;
+  #d3-pc-context size: (Input first).bits count;
 test
   let Input = [new d3-number([z, z, o, z, z]), new d3-number([o, o, o, o, z])];
-  assert (#d3-context from-input-shape: Input) === new d3-context([0, 0, 0, 0, 0], [0, 0, 0, 0, 0]);
+  assert (#d3-pc-context from-input-shape: Input) === new d3-pc-context([0, 0, 0, 0, 0], [0, 0, 0, 0, 0]);
 end
 
-command d3-context add: (Number is d3-number) do
-  new d3-context(
+command d3-pc-context reset-from: (Position is integer) do
+  new d3-pc-context(
+    self zeroes enumerate map: (day3 pick-count: _ if-before-position: Position),
+    self ones enumerate map: (day3 pick-count: _ if-before-position: Position),
+  );
+test
+  assert (new d3-pc-context([1, 2, 3], [4, 5, 6]) reset-from: 3)
+    === new d3-pc-context([1, 2, 0], [4, 5, 0]);
+end
+
+command d3-pc-context bit-at: Position target: d3t-most-common =
+  self most-common-bits at: Position;
+
+command d3-pc-context bit-at: Position target: d3t-least-common =
+  self least-common-bits at: Position;
+
+command day3 pick-count: Count if-before-position: Position =
+  condition
+    when Count index < Position => Count value;
+    otherwise => 0;
+  end;
+
+command d3-pc-context add: (Number is d3-number) do
+  new d3-pc-context(
     Number count-zeroes: self zeroes,
     Number count-ones: self ones,
   );
 test
-  assert ((#d3-context size: 5) add: new d3-number([z, z, o, z, z]))
-    === new d3-context([1, 1, 0, 1, 1], [0, 0, 1, 0, 0]);
+  assert ((#d3-pc-context size: 5) add: new d3-number([z, z, o, z, z]))
+    === new d3-pc-context([1, 1, 0, 1, 1], [0, 0, 1, 0, 0]);
 end
 
-command d3-context add-all: (Numbers is list<d3-number>) do
+command d3-pc-context add-all: (Numbers is list<d3-number>) do
   Numbers fold-from: self with: (_ add: _);
 test
   let Input = [
@@ -91,40 +138,39 @@ test
     new d3-number([z, z, z, o, z]),
     new d3-number([z, o, z, o, z]),
   ];
-  assert ((#d3-context from-input-shape: Input) add-all: Input)
-    === new d3-context([5, 7, 4, 5, 7], [7, 5, 8, 7, 5]);
+  assert ((#d3-pc-context from-input-shape: Input) add-all: Input)
+    === new d3-pc-context([5, 7, 4, 5, 7], [7, 5, 8, 7, 5]);
 end
 
-command d3-context most-common-bits do
+command d3-pc-context most-common-bits do
   self zeroes zip: self ones with: (day3 pick: _ or: _ with: (_ > _));
 test
-  assert new d3-context([4, 5, 6], [3, 8, 5]) most-common-bits
+  assert new d3-pc-context([4, 5, 6], [3, 8, 5]) most-common-bits
     === [d3-bit--zero, d3-bit--one, d3-bit--zero];
 end
 
-command d3-context least-common-bits do
-  self zeroes zip: self ones with: (day3 pick: _ or: _ with: (_ < _));
+command d3-pc-context least-common-bits do
+  self zeroes zip: self ones with: (day3 pick: _ or: _ with: (_ <= _));
 test
-  assert new d3-context([4, 5, 6], [3, 8, 5]) least-common-bits
+  assert new d3-pc-context([4, 5, 6], [3, 8, 5]) least-common-bits
     === [d3-bit--one, d3-bit--zero, d3-bit--one];
 end
 
-command d3-context gamma =
+command d3-pc-context gamma =
   day3 bits-to-decimal: self most-common-bits;
 
-command d3-context epsilon =
+command d3-pc-context epsilon =
   day3 bits-to-decimal: self least-common-bits;
 
-command d3-context power-consumption do
+command d3-pc-context power-consumption do
   self gamma * self epsilon
 test
   let Input = day3 parse: day3 example-input;
-  let Context = #d3-context from-input-shape: Input;
+  let Context = #d3-pc-context from-input-shape: Input;
   assert (Context add-all: Input) power-consumption === 198;
 end
 
 command day3 pick: (Z is integer) or: (O is integer) with: (F is function-2)
-requires not-equal :: Z =/= O
 do
   condition
     when F(Z, O) => d3-bit--zero;
@@ -166,11 +212,145 @@ test
     === [2, 2, 4];
 end
 
+
 // -- Part 1
 command day3 part1 do
   let Input = day3 parse: day3 input;
-  let Context = #d3-context from-input-shape: Input;
+  let Context = #d3-pc-context from-input-shape: Input;
   (Context add-all: Input) power-consumption;
 test
   assert day3 part1 === 3_242_606;
+end
+
+
+// -- Part 2
+type d3-candidates(
+  global candidates is list<d3-number>,
+  global binary-context is d3-pc-context,
+  global target is d3-target,
+  global position is integer,
+);
+
+type d3-lc-context(
+  global oxygen is d3-candidates,
+  global co2 is d3-candidates
+);
+
+type d3-lc(
+  global oxygen is d3-number,
+  global co2 is d3-number,
+);
+
+type d3-lc-filter-context(
+  global candidates is list<d3-number>,
+  global binary-context is d3-pc-context,
+  global bit is d3-bit,
+  global position is integer,
+);
+
+command #d3-lc-context from-pc-context: (X is d3-pc-context) candidates: Candidates =
+  new d3-lc-context(
+    new d3-candidates(
+      Candidates,
+      X,
+      d3t-most-common,
+      1
+    ),
+    new d3-candidates(
+      Candidates,
+      X,
+      d3t-least-common,
+      1
+    )
+  );
+
+command d3-lc-context filter =
+  #d3-lc oxygen: self oxygen filter co2: self co2 filter;
+
+command #d3-lc oxygen: (Oxygen is d3-candidates) co2: (Co2 is d3-candidates)
+requires one-candidate :: (Oxygen candidates count === 1) and (Co2 candidates count === 1)
+do
+  new d3-lc(Oxygen candidates first, Co2 candidates first);
+end
+
+command d3-candidates filter do
+  self binary-context zeroes
+    | fold-from: self
+      with: { C, _ in C filter-current };
+end
+
+command d3-candidates make-filter =
+  new d3-lc-filter-context(
+    [],
+    self binary-context reset-from: (self position + 1),
+    self binary-context bit-at: self position target: self target,
+    self position
+  );
+
+command d3-candidates filter-current
+requires non-empty-candidates :: (self position === 1) or (self candidates count > 0)
+do
+  condition
+    when self candidates count === 1 =>
+      new d3-candidates(
+        self candidates,
+        self binary-context,
+        self target,
+        self position + 1
+      );
+
+    otherwise do
+      let Filter = self make-filter;
+      let Filtered = Filter apply: self candidates;
+      new d3-candidates(
+        Filtered candidates,
+        Filtered binary-context,
+        self target,
+        self position + 1
+      );
+    end
+  end
+end
+
+command d3-lc-filter-context apply: Candidates do
+  Candidates fold-from: self
+             with: (_ add: _);
+end
+
+command d3-lc-filter-context add: Candidate do
+  condition
+    when (Candidate.bits at: self position) === self bit =>
+      new d3-lc-filter-context(
+        self candidates append: Candidate,
+        self binary-context add: Candidate,
+        self bit,
+        self position,
+      );
+
+    otherwise => self;
+  end
+end
+
+command d3-lc rating = (self oxygen as integer) * (self co2 as integer);
+
+test "day3 example" do
+  let Input = day3 parse: day3 example-input;
+  let Context = #d3-pc-context from-input-shape: Input
+                  | add-all: Input;
+  let Life-support-context = #d3-lc-context from-pc-context: Context candidates: Input;
+  assert Life-support-context oxygen filter candidates === [new d3-number([o, z, o, o, o])];
+  assert Life-support-context co2 filter candidates === [new d3-number([z, o, z, o, z])];
+  let Life-support = Life-support-context filter;
+  assert (Life-support oxygen as integer) === 23;
+  assert (Life-support co2 as integer) === 10;
+end
+
+command day3 part2 do
+  let Input = day3 parse: day3 input;
+  let Context = #d3-pc-context from-input-shape: Input | add-all: Input;
+  #d3-lc-context from-pc-context: Context candidates: Input
+    | filter
+    | rating;
+test
+  assert day3 part2 === 4_856_080;
 end
