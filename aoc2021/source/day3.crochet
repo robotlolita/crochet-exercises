@@ -1,0 +1,176 @@
+% crochet
+
+singleton day3;
+
+// -- Parsing woes
+implement equality for d3-bit;
+command d3-bit === d3-bit = false;
+command d3-bit--zero === d3-bit--zero = true;
+command d3-bit--one === d3-bit--one = true;
+
+implement equality for d3-number;
+command d3-number === (That is d3-number) = self.bits === That.bits;
+
+local define z = d3-bit--zero;
+local define o = d3-bit--one;
+
+command day3 parse: (Input is text) do
+  let Tree = d3-grammar parse: Input;
+  condition
+    when Tree is error => panic: Tree reason tag: "syntax-error";
+    when Tree is ok => Tree value;
+  end
+test
+  let Input = "00100
+               11110
+               10110";
+  assert (day3 parse: Input) === [
+    new d3-number([z, z, o, z, z]),
+    new d3-number([o, o, o, o, z]),
+    new d3-number([o, z, o, o, z]),
+  ];
+end
+
+
+// -- Evaluation context woes
+type d3-context(
+  global zeroes is list<integer>,
+  global ones is list<integer>,
+);
+
+implement equality for d3-context;
+command d3-context === (That is d3-context) =
+  (self zeroes === That zeroes) and (self ones === That ones);
+
+command #d3-context size: (Size is integer)
+requires
+  positive :: Size > 0
+ensures
+  same-size :: (return zeroes count === Size) and (return ones count === Size),
+  zeroed :: (return zeroes all: (_ === 0)) and (return ones all: (_ === 0))
+do
+  let Zeroed = (1 to: Size) map: { _ in 0 };
+  new d3-context(Zeroed, Zeroed);
+test
+  assert (#d3-context size: 5) === new d3-context([0, 0, 0, 0, 0], [0, 0, 0, 0, 0]);
+end
+
+command #d3-context from-input-shape: (Input is list<d3-number>)
+requires non-empty :: not Input is-empty
+do
+  #d3-context size: (Input first).bits count;
+test
+  let Input = [new d3-number([z, z, o, z, z]), new d3-number([o, o, o, o, z])];
+  assert (#d3-context from-input-shape: Input) === new d3-context([0, 0, 0, 0, 0], [0, 0, 0, 0, 0]);
+end
+
+command d3-context add: (Number is d3-number) do
+  new d3-context(
+    Number count-zeroes: self zeroes,
+    Number count-ones: self ones,
+  );
+test
+  assert ((#d3-context size: 5) add: new d3-number([z, z, o, z, z]))
+    === new d3-context([1, 1, 0, 1, 1], [0, 0, 1, 0, 0]);
+end
+
+command d3-context add-all: (Numbers is list<d3-number>) do
+  Numbers fold-from: self with: (_ add: _);
+test
+  let Input = [
+    new d3-number([z, z, o, z, z]),
+    new d3-number([o, o, o, o, z]),
+    new d3-number([o, z, o, o, z]),
+    new d3-number([o, z, o, o, o]),
+    new d3-number([o, z, o, z, o]),
+    new d3-number([z, o, o, o, o]),
+    new d3-number([z, z, o, o, o]),
+    new d3-number([o, o, o, z, z]),
+    new d3-number([o, z, z, z, z]),
+    new d3-number([o, o, z, z, o]),
+    new d3-number([z, z, z, o, z]),
+    new d3-number([z, o, z, o, z]),
+  ];
+  assert ((#d3-context from-input-shape: Input) add-all: Input)
+    === new d3-context([5, 7, 4, 5, 7], [7, 5, 8, 7, 5]);
+end
+
+command d3-context most-common-bits do
+  self zeroes zip: self ones with: (day3 pick: _ or: _ with: (_ > _));
+test
+  assert new d3-context([4, 5, 6], [3, 8, 5]) most-common-bits
+    === [d3-bit--zero, d3-bit--one, d3-bit--zero];
+end
+
+command d3-context least-common-bits do
+  self zeroes zip: self ones with: (day3 pick: _ or: _ with: (_ < _));
+test
+  assert new d3-context([4, 5, 6], [3, 8, 5]) least-common-bits
+    === [d3-bit--one, d3-bit--zero, d3-bit--one];
+end
+
+command d3-context gamma =
+  day3 bits-to-decimal: self most-common-bits;
+
+command d3-context epsilon =
+  day3 bits-to-decimal: self least-common-bits;
+
+command d3-context power-consumption do
+  self gamma * self epsilon
+test
+  let Input = day3 parse: day3 example-input;
+  let Context = #d3-context from-input-shape: Input;
+  assert (Context add-all: Input) power-consumption === 198;
+end
+
+command day3 pick: (Z is integer) or: (O is integer) with: (F is function-2)
+requires not-equal :: Z =/= O
+do
+  condition
+    when F(Z, O) => d3-bit--zero;
+    otherwise => d3-bit--one;
+  end
+end
+
+command day3 bits-to-decimal: (Bits is list<d3-bit>) do
+  Bits
+    | reverse
+    | enumerate
+    | map: { Pair in (2 ** (Pair index - 1)) * Pair value binary-value }
+    | fold-from: 0 with: (_ + _);
+test
+  assert (day3 bits-to-decimal: [o, z, o, o, z]) === 22;
+  assert (day3 bits-to-decimal: [z, o, z, z, o]) === 9;
+end
+
+command d3-bit--zero binary-value = 0;
+command d3-bit--one binary-value = 1;
+
+command d3-bit--zero count-zero: (N is integer) = N + 1;
+command d3-bit--zero count-one: (N is integer) = N;
+
+command d3-bit--one count-zero: (N is integer) = N;
+command d3-bit--one count-one: (N is integer) = N + 1;
+
+command d3-number count-zeroes: (Counts is list<integer>) do
+  self.bits zip: Counts with: (_ count-zero: _)
+test
+  assert (new d3-number([z, o, z]) count-zeroes: [1, 2, 3])
+    === [2, 2, 4];
+end
+
+command d3-number count-ones: (Counts is list<integer>) do
+  self.bits zip: Counts with: (_ count-one: _);
+test
+  assert (new d3-number([o, z, o]) count-ones: [1, 2, 3])
+    === [2, 2, 4];
+end
+
+// -- Part 1
+command day3 part1 do
+  let Input = day3 parse: day3 input;
+  let Context = #d3-context from-input-shape: Input;
+  (Context add-all: Input) power-consumption;
+test
+  assert day3 part1 === 3_242_606;
+end

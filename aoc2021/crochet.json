@@ -8,7 +8,10 @@
     "source/day1-input.crochet",
     "source/day2-grammar.lingua",
     "source/day2.crochet",
-    "source/day2-input.crochet"
+    "source/day2-input.crochet",
+    "source/day3-grammar.lingua",
+    "source/day3.crochet",
+    "source/day3-input.crochet"
   ],
   "dependencies": [
     "crochet.core",

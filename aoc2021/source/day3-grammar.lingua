@@ -1,0 +1,15 @@
+type d3_bit =
+  | zero()
+  | one()
+
+type d3_number(bits: d3_bit[])
+
+grammar d3_grammar : d3_number[] {
+  Numbers = xs:number+ end -> xs
+
+  number = xs:bit+ -> d3_number(xs)
+
+  bit =
+    | "0" -> d3_bit.zero()
+    | "1" -> d3_bit.one()
+}
