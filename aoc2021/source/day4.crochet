@@ -64,3 +64,148 @@ command d4-board normalise = new day4-board(self.rows map: (_ normalise));
 command d4-row normalise = self.columns map: (_ normalise);
 command d4-data normalise = new day4-data(self.input normalise, self.boards map: (_ normalise));
 
+
+// -- Logical modelling
+relation d4-game: Game*;
+relation Game* d4-game-board: Board*;
+relation Game* d4-game-input: Input;
+relation Game* d4-game-drawn: Number;
+relation Game* d4-game-state: State;
+relation Board* d4-board-rows: Rows columns: Columns;
+relation Board* d4-board-number: Number* marked: Boolean;
+relation Board* d4-board-number: Number* row: Row column: Column;
+
+// Manual indexes (for now)
+relation Board* d4-board-won: Boolean;
+relation Board* d4-board-row: Row* marks: Marks;
+relation Board* d4-board-column: Column* marks: Marks;
+
+type d4m-game;
+type d4m-board;
+enum d4m-state = d4m-on-going, d4m-ended;
+
+command day4 make-game: (Data is day4-data) do
+  let Game = new d4m-game;
+  fact d4-game: Game;
+  fact Game d4-game-input: (Data input);
+  fact Game d4-game-state: d4m-on-going;
+
+  // Initialising the boards
+  for Board-data in Data boards do
+    let Board = new d4m-board;
+    fact Game d4-game-board: Board;
+    fact Board d4-board-won: false;
+    fact Board d4-board-rows: (Board-data rows count)
+               columns: (Board-data rows first count);
+
+    // Initialising the numbers on the boards and their "mark" status
+    for Row in Board-data rows enumerate, Column in Row value enumerate do
+      fact Board d4-board-number: (Column value) marked: false;
+      fact Board d4-board-number: (Column value)
+                 row: (Row index)
+                 column: (Column index);
+    end
+
+    // Keeping track of how many marks we have on each row/column
+    for Row in 1 to: Board-data rows count do
+      fact Board d4-board-row: Row marks: 0;
+    end
+
+    for Column in 1 to: Board-data rows first count do
+      fact Board d4-board-column: Column marks: 0;
+    end
+  end
+
+  Game;
+end
+
+command d4m-board mark: (Number is integer) do
+  match
+    when
+      self d4-board-number: Number marked: Is-marked,
+      self d4-board-number: Number row: Row column: Column,
+      self d4-board-row: Row marks: Row-marks,
+      self d4-board-column: Column marks: Column-marks
+    do
+      assert not Is-marked;
+      fact self d4-board-number: Number marked: true;
+      fact self d4-board-row: Row marks: (Row-marks + 1);
+      fact self d4-board-column: Column marks: (Column-marks + 1);
+    end
+
+    when not self d4-board-number: Number marked: _ do
+      nothing
+    end
+  end
+end
+
+command d4m-game play do
+  simulate for [self] in day4 until self d4-game-state: d4m-ended;
+end
+
+command d4m-game state =
+  (search self d4-game-state: State).State first;
+
+command d4m-game boards =
+  (search self d4-game-board: Board).Board;
+
+command d4m-game winning-board
+requires ended :: self state === d4m-ended
+do
+  (search self d4-game-board: Board, Board d4-board-won: true).Board first;
+end
+
+command d4m-game last-drawn =
+  (search self d4-game-drawn: Number).Number first;
+
+command d4m-game score
+requires ended :: self state === d4m-ended
+do
+  self winning-board unmarked-numbers sum * self last-drawn;
+end
+
+command d4m-board unmarked-numbers =
+  (search self d4-board-number: Number marked: false).Number;
+
+
+context day4 with
+  action (Game is d4m-game) step "Draw the next number"
+  when
+    Game d4-game-state: d4m-on-going,
+    Game d4-game-input: Input,
+    if not Input is-empty,
+    let Boards = search Game d4-game-board: Board
+  do
+    let Drawn = Input first;
+    let Remaining = Input rest;
+    fact Game d4-game-drawn: Drawn;
+    fact Game d4-game-input: Remaining;
+    Boards.Board map: (_ mark: Drawn);
+  end
+
+  when
+    d4-game: Game,
+    Game d4-game-state: d4m-on-going,
+    Game d4-game-board: Board,
+    Board d4-board-rows: Rows columns: Columns,
+    (Board d4-board-row: _ marks: Columns | Board d4-board-column: _ marks: Rows)
+  do
+    fact Board d4-board-won: true;
+    fact Game d4-game-state: d4m-ended;
+  end  
+end
+
+command day4 part1: Input do
+  let Data = day4 parse: Input;
+  let Game = day4 make-game: Data;
+  Game play;
+  Game score;
+test
+  assert (day4 part1: day4 example-input) === 4_512;  
+end
+
+command day4 part1 do
+  day4 part1: day4 input;
+test
+  assert day4 part1 === 8_442;
+end
