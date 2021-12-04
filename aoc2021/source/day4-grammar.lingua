@@ -1,0 +1,31 @@
+type d4_number(value: text)
+type d4_input(numbers: d4_number[])
+type d4_board(rows: d4_row[])
+type d4_row(columns: d4_number[])
+type d4_data(input: d4_input, boards: d4_board[])
+
+grammar d4_grammar : d4_data {
+  File =
+    | any_spaces* i:Input nl+ bs:Boards any_spaces* end -> d4_data(i, bs)
+
+  Input =
+    | xs:NonemptyListOf<number, ","> -> d4_input(xs)
+
+  Boards =
+    | xs:NonemptyListOf<Board, empty_line> -> xs
+
+  Board =
+    | xs:NonemptyListOf<Row, nl> -> d4_board(xs)
+
+  Row =
+    | xs:number+ -> d4_row(xs)
+
+  // -- Lexical parts
+  number = i:integer -> d4_number(i)
+  token integer = digit+
+  
+  token space := " " | "\t"         // - don't include newlines here because they're special!
+  token nl = "\r\n" | "\r" | "\n"   // - can you tell how much i love OS conventions?
+  token empty_line = nl space* nl
+  token any_spaces = space | nl
+}

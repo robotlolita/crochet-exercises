@@ -1,0 +1,66 @@
+% crochet
+
+singleton day4;
+
+
+// -- Parsing. It's always parsing...
+type day4-data(
+  global input is list<integer>,
+  global boards is list<day4-board>,
+);
+
+type day4-board(
+  global rows is list<list<integer>>
+);
+
+implement equality for day4-data;
+command day4-data === (That is day4-data) =
+  (self input === That input) and (self boards === That boards);
+
+implement equality for day4-board;
+command day4-board === (That is day4-board) =
+  self rows === That rows;
+
+command day4 parse: (Input is text) do
+  let Tree = d4-grammar parse: Input;
+  condition
+    when Tree is error => panic message: Tree reason tag: "syntax-error";
+    when Tree is ok => Tree value normalise;
+  end
+test
+  assert (day4 parse: day4 example-input) === new day4-data(
+    [7,4,9,5,11,17,23,2,0,14,21,24,10,16,13,6,15,25,12,22,18,20,8,19,3,26,1],
+    [
+      new day4-board([
+        [22, 13, 17, 11,  0],
+        [ 8,  2, 23,  4, 24],
+        [21,  9, 14, 16,  7],
+        [ 6, 10,  3, 18,  5],
+        [ 1, 12, 20, 15, 19],
+      ]),
+      
+      new day4-board([
+        [ 3, 15,  0,  2, 22],
+        [ 9, 18, 13, 17,  5],
+        [19,  8,  7, 25, 23],
+        [20, 11, 10, 24,  4],
+        [14, 21, 16, 12,  6],
+      ]),
+
+      new day4-board([
+        [14, 21, 17, 24,  4],
+        [10, 16, 15,  9, 19],
+        [18,  8, 23, 26, 20],
+        [22, 11, 13,  6,  5],
+        [ 2,  0, 12,  3,  7],
+      ]),
+    ]
+  );
+end
+
+command d4-number normalise = #integer try-parse: self.value | value-or-panic: "not an integer";
+command d4-input normalise = self.numbers map: (_ normalise);
+command d4-board normalise = new day4-board(self.rows map: (_ normalise));
+command d4-row normalise = self.columns map: (_ normalise);
+command d4-data normalise = new day4-data(self.input normalise, self.boards map: (_ normalise));
+
