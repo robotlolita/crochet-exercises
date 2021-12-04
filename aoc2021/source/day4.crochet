@@ -1,5 +1,6 @@
 % crochet
 
+open crochet.debug;
 singleton day4;
 
 
@@ -70,7 +71,7 @@ relation d4-game: Game*;
 relation Game* d4-game-board: Board*;
 relation Game* d4-game-input: Input;
 relation Game* d4-game-drawn: Number;
-relation Game* d4-game-state: State;
+relation Game* d4-game-winners: Winners;
 relation Board* d4-board-rows: Rows columns: Columns;
 relation Board* d4-board-number: Number* marked: Boolean;
 relation Board* d4-board-number: Number* row: Row column: Column;
@@ -82,13 +83,13 @@ relation Board* d4-board-column: Column* marks: Marks;
 
 type d4m-game;
 type d4m-board;
-enum d4m-state = d4m-on-going, d4m-ended;
+type d4m-winner(global winning-number is integer, global board is d4m-board);
 
 command day4 make-game: (Data is day4-data) do
   let Game = new d4m-game;
   fact d4-game: Game;
   fact Game d4-game-input: (Data input);
-  fact Game d4-game-state: d4m-on-going;
+  fact Game d4-game-winners: [];
 
   // Initialising the boards
   for Board-data in Data boards do
@@ -139,29 +140,21 @@ command d4m-board mark: (Number is integer) do
   end
 end
 
-command d4m-game play do
-  simulate for [self] in day4 until self d4-game-state: d4m-ended;
-end
-
 command d4m-game state =
   (search self d4-game-state: State).State first;
 
 command d4m-game boards =
   (search self d4-game-board: Board).Board;
 
-command d4m-game winning-board
-requires ended :: self state === d4m-ended
-do
-  (search self d4-game-board: Board, Board d4-board-won: true).Board first;
+command d4m-game winners do
+  (search self d4-game-winners: Winners).Winners first;
 end
 
 command d4m-game last-drawn =
   (search self d4-game-drawn: Number).Number first;
 
-command d4m-game score
-requires ended :: self state === d4m-ended
-do
-  self winning-board unmarked-numbers sum * self last-drawn;
+command d4m-winner score do
+  self board unmarked-numbers sum * self winning-number;
 end
 
 command d4m-board unmarked-numbers =
@@ -171,7 +164,6 @@ command d4m-board unmarked-numbers =
 context day4 with
   action (Game is d4m-game) step "Draw the next number"
   when
-    Game d4-game-state: d4m-on-going,
     Game d4-game-input: Input,
     if not Input is-empty,
     let Boards = search Game d4-game-board: Board
@@ -185,21 +177,23 @@ context day4 with
 
   when
     d4-game: Game,
-    Game d4-game-state: d4m-on-going,
+    Game d4-game-drawn: Last-drawn,
+    Game d4-game-winners: Winners,
     Game d4-game-board: Board,
+    Board d4-board-won: false,
     Board d4-board-rows: Rows columns: Columns,
     (Board d4-board-row: _ marks: Columns | Board d4-board-column: _ marks: Rows)
   do
     fact Board d4-board-won: true;
-    fact Game d4-game-state: d4m-ended;
+    fact Game d4-game-winners: (Winners append: new d4m-winner(Last-drawn, Board));
   end  
 end
 
 command day4 part1: Input do
   let Data = day4 parse: Input;
   let Game = day4 make-game: Data;
-  Game play;
-  Game score;
+  simulate for [Game] in day4 until (Game d4-game-board: Board, Board d4-board-won: true);
+  Game winners first score;
 test
   assert (day4 part1: day4 example-input) === 4_512;  
 end
@@ -208,4 +202,19 @@ command day4 part1 do
   day4 part1: day4 input;
 test
   assert day4 part1 === 8_442;
+end
+
+command day4 part2: Input do
+  let Data = day4 parse: Input;
+  let Game = day4 make-game: Data;
+  simulate for [Game] in day4 until not (Game d4-game-board: Board, Board d4-board-won: false);
+  Game winners last score;
+test
+  assert (day4 part2: day4 example-input) === 1_924;
+end
+
+command day4 part2 do
+  day4 part2: day4 input;
+test
+  assert day4 part2 === 4_590;
 end
