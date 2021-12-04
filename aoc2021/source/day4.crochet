@@ -1,6 +1,59 @@
 % crochet
 
-open crochet.debug;
+// The moment I saw the game boards in this puzzle I was like, "oh,
+// finally time to use some logic programming!".
+//
+// A significant part of this is devoted to just parsing the input,
+// like always. The interesting part is the logical modelling, though.
+// For this, it would be possible to do a more straight-forward modelling
+// and compute winning moves at every turn. Sadly, Crochet does not currently
+// support optimising incremental database changes, so we need to do some
+// manual magic to prevent this from taking forever to complete.
+//
+// To that end, the "main" tables (logical relations) hold the game, the
+// boards in that game, the input (which changes over time), and the
+// numbers in the board (and whether they're marked or not).
+//
+// The choices of how to structure these relations are more based on how
+// they're going to change and be queried as the program moves along through
+// time. So for a game, we can have input changes, we need to keep track of
+// the last number drawn, and we need to keep track of the winners. Both the
+// input and the winners are *ordered*, so instead of storing them in a
+// normalised form in the relations, they're stored as a regular Crochet list.
+// Currently Crochet does not support search *in* things like lists and records,
+// but that isn't a problem for this particular case.
+//
+// For the boards, we need to keep track of which numbers it has, whether the
+// numbers are marked or not, and where those numbers lay in the board (we have
+// to use this to figure out whether a row or column have been marked). We also
+// keep track separately of whether the board reached a winning state (because
+// we can't search in the winner list cheaply), and how many marks we have in
+// each row and each column---this allows us to check for a winning move without
+// having to look at every number in the board. Crochet currently does not
+// support automatically generating and maintaining incremental indexes, so
+// these have to be modified manually. There are no verifications that apply
+// to relations yet, either, so it's hard to think about invariants of the
+// database for now. That's definitely something that has to be fixed before
+// a production release of Crochet.
+//
+// Finally, the entire puzzle is expressed as a simulation. There's one action
+// here: at each turn, the game takes the next number, and everyone marks it in
+// their board. This continues until there are no more numbers to draw.
+//
+// And there's one event: at each turn, we check which boards managed to get
+// a winning number and both mark it as a winner board and append it to the
+// winners list---this consequently lets us keep track of the time ordering
+// for these winning boards.
+//
+// This simulation works for both parts, in fact. There needs to be no change
+// in how they work. What changes is the simulation *goal*. Part 1 plays the
+// simulation until there is one winning board (it could go on, but that would
+// explore more of the simulation than strictly needed). Part 2 plays the
+// simulation until there is either no input, or no non-winning boards left.
+//
+// At that point, each of them just uses the state of the winners list at that
+// point in time, which contains all that's needed to compute the final score.
+
 singleton day4;
 
 
@@ -207,7 +260,9 @@ end
 command day4 part2: Input do
   let Data = day4 parse: Input;
   let Game = day4 make-game: Data;
-  simulate for [Game] in day4 until not (Game d4-game-board: Board, Board d4-board-won: false);
+  simulate for [Game] in day4
+    until (Game d4-game-input: Remaining, if Remaining is-empty)
+        | not (Game d4-game-board: Board, Board d4-board-won: false);
   Game winners last score;
 test
   assert (day4 part2: day4 example-input) === 1_924;
