@@ -37,7 +37,7 @@ command d2-program === (That is d2-program) = (self instructions === That instru
 command day2 parse: (Input is text) do
   let Tree = day2-grammar parse: Input;
   condition
-    when Tree is error => panic: Tree reason tag: "syntax-error";
+    when Tree is error => panic message: Tree reason tag: "syntax-error";
     when Tree is ok => Tree value normalise;
   end
 test

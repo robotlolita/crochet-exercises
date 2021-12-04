@@ -40,7 +40,7 @@ local define o = d3-bit--one;
 command day3 parse: (Input is text) do
   let Tree = d3-grammar parse: Input;
   condition
-    when Tree is error => panic: Tree reason tag: "syntax-error";
+    when Tree is error => panic message: Tree reason tag: "syntax-error";
     when Tree is ok => Tree value;
   end
 test
