@@ -1,0 +1,29 @@
+% crochet
+
+singleton day5;
+
+// -- Yes, it is parsing again :x
+command day5 parse: (Input is text) do
+  let Tree = d5-grammar parse: Input;
+  condition
+    when Tree is error => panic message: Tree reason tag: "syntax-error";
+    when Tree is ok => Tree value normalise;
+  end
+test
+  assert (day5 parse: day5 example-input) === [
+    #line start: (#point2d x: 0 y: 9) stop: (#point2d x: 5 y: 9),
+    #line start: (#point2d x: 8 y: 0) stop: (#point2d x: 0 y: 8),
+    #line start: (#point2d x: 9 y: 4) stop: (#point2d x: 3 y: 4),
+    #line start: (#point2d x: 2 y: 2) stop: (#point2d x: 2 y: 1),
+    #line start: (#point2d x: 7 y: 0) stop: (#point2d x: 7 y: 4),
+    #line start: (#point2d x: 6 y: 4) stop: (#point2d x: 2 y: 0),
+    #line start: (#point2d x: 0 y: 9) stop: (#point2d x: 2 y: 9),
+    #line start: (#point2d x: 3 y: 4) stop: (#point2d x: 1 y: 4),
+    #line start: (#point2d x: 0 y: 0) stop: (#point2d x: 8 y: 8),
+    #line start: (#point2d x: 5 y: 5) stop: (#point2d x: 8 y: 2),
+  ];
+end
+
+command d5-line normalise = #line start: (self.start normalise) stop: (self.stop normalise);
+command d5-point normalise = #point2d x: (self.x normalise) y: (self.y normalise);
+command d5-number normalise = #integer try-parse: self.value | value-or-panic: "not an integer";

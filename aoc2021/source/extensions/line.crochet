@@ -1,0 +1,20 @@
+% crochet
+
+type line(global start is point2d, global stop is point2d);
+
+implement equality for line;
+command line === (That is line) =
+  (self start === That start) and (self stop === That stop);
+
+command #line start: (Start is point2d) stop: (Stop is point2d) =
+  new line(Start, Stop);
+
+command line is-horizontal =
+  self start x === self stop x;
+
+command line is-vertical =
+  self start y === self stop y;
+
+command line is-straight =
+  self is-horizontal or self is-vertical;
+  

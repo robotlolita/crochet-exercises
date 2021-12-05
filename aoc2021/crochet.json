@@ -4,6 +4,8 @@
   "native_sources": [],
   "sources": [
     "source/extensions/list.crochet",
+    "source/extensions/point2d.crochet",
+    "source/extensions/line.crochet",
     "source/day1.crochet",
     "source/day1-input.crochet",
     "source/day2-grammar.lingua",
@@ -14,7 +16,10 @@
     "source/day3-input.crochet",
     "source/day4-grammar.lingua",
     "source/day4.crochet",
-    "source/day4-input.crochet"
+    "source/day4-input.crochet",
+    "source/day5-grammar.lingua",
+    "source/day5.crochet",
+    "source/day5-input.crochet"
   ],
   "dependencies": [
     "crochet.core",

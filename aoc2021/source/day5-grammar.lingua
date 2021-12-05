@@ -1,0 +1,12 @@
+type d5_number(value: text)
+type d5_point(x: d5_number, y: d5_number);
+type d5_line(start: d5_point, stop: d5_point);
+
+grammar d5_grammar : d5_line[] {
+  File = xs:Line+ end -> xs
+  Line = a:Point "->" b:Point -> d5_line(a, b)
+  Point = x:Number "," y:Number -> d5_point(x, y)
+  Number = x:number -> d5_number(x)
+
+  token number = digit+
+}
