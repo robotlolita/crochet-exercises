@@ -1,5 +1,23 @@
 % crochet
 
+// This one really pushed Crochet's current VM beyond its puny capabilities,
+// sadly. The current interpreter overhead is... very high, which makes any
+// program that spends a lot of time in interpreter cycles take significantly
+// more time than it should.
+//
+// When approaching this as a bitmap drawing problem, though, we unearth
+// another problem with the current VM architecture: the allocation overhead
+// is way too high. Particularly, trying to model the bitmap type with a
+// persistent vector makes the program take unreasonable time to complete.
+// Which is why this uses a mutable memory native type for that. Still,
+// the mutating approach only reduces the runtime somewhat, and running
+// both parts still takes around 35 seconds.
+//
+// There are quite a few annoyances with the standard library here as
+// well that are addressed in extensions, and some that are not---e.g.:
+// the fact that ranges currently allocates actual lists for itself,
+// and cannot have them in negative direction.
+
 open crochet.debug;
 singleton day5;
 
