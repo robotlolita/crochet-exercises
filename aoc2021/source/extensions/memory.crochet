@@ -1,0 +1,29 @@
+% crochet
+
+type memory(global size is integer, bytes is unknown);
+
+command #memory allocate: (Size is integer)
+requires
+  positive :: Size > 0
+do
+  new memory(Size, foreign mem.alloc(Size));
+end
+
+command memory at: (Offset is integer)
+requires
+  within-bounds :: (Offset > 0) and (Offset <= self size)
+do
+  foreign mem.at(self.bytes, Offset - 1);
+end
+
+command memory at: (Offset is integer) put: (Value is integer)
+requires
+  within-bounds :: (Offset > 0) and (Offset <= self size)
+do
+  foreign mem.at-put(self.bytes, Offset - 1, Value);
+  self;
+end
+
+command memory as list do
+  foreign mem.list(self.bytes);
+end

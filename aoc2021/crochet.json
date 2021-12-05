@@ -1,11 +1,15 @@
 {
   "name": "me.robotlolita.aoc2021",
   "target": "*",
-  "native_sources": [],
+  "native_sources": ["native/memory.js"],
   "sources": [
     "source/extensions/list.crochet",
+    "source/extensions/numeric.crochet",
+    "source/extensions/geometry-types.crochet",
     "source/extensions/point2d.crochet",
     "source/extensions/line.crochet",
+    "source/extensions/rectangle.crochet",
+    "source/extensions/memory.crochet",
     "source/day1.crochet",
     "source/day1-input.crochet",
     "source/day2-grammar.lingua",
@@ -27,7 +31,7 @@
     "crochet.text.parsing.lingua"
   ],
   "capabilities": {
-    "requires": [],
+    "requires": ["native"],
     "provides": []
   }
 }

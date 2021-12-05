@@ -1,5 +1,6 @@
 % crochet
 
+open crochet.debug;
 singleton day5;
 
 // -- Yes, it is parsing again :x
@@ -7,7 +8,7 @@ command day5 parse: (Input is text) do
   let Tree = d5-grammar parse: Input;
   condition
     when Tree is error => panic message: Tree reason tag: "syntax-error";
-    when Tree is ok => Tree value normalise;
+    when Tree is ok => Tree value map: (_ normalise);
   end
 test
   assert (day5 parse: day5 example-input) === [
@@ -27,3 +28,118 @@ end
 command d5-line normalise = #line start: (self.start normalise) stop: (self.stop normalise);
 command d5-point normalise = #point2d x: (self.x normalise) y: (self.y normalise);
 command d5-number normalise = #integer try-parse: self.value | value-or-panic: "not an integer";
+
+// -- Bitmap drawing thingies
+type d5-bitmap(global width is integer, global height is integer, pixels is memory);
+
+command #d5-bitmap width: (W is integer) height: (H is integer) do
+  let Pixels = #memory allocate: ((W + 1) * (H + 1));
+  new d5-bitmap(W, H, Pixels);
+end
+
+command d5-bitmap at: (Point is point2d)
+requires
+  valid-y :: (Point y >= 0) and (Point y <= self height),
+  valid-x :: (Point x >= 0) and (Point x <= self width)
+do
+  self.pixels at: ((Point y * self width) + Point x) + 1;
+end
+
+command d5-bitmap at: (Point is point2d) put: (Value is integer)
+requires
+  valid-y :: (Point y >= 0) and (Point y <= self height),
+  valid-x :: (Point x >= 0) and (Point x <= self width)
+do
+  let X = ((Point y * self width) + Point x) + 1;
+  self.pixels at: X put: Value;
+  self;
+end
+
+command d5-bitmap at: (Point is point2d) update: (Update is (integer -> integer)) do
+  self at: Point put: Update(self at: Point);
+end
+
+command d5-bitmap draw-line: (Line is line) do
+  for Point in Line points do
+    self at: Point update: (_ + 1);
+  end
+  self;
+end
+
+command d5-bitmap pixels do
+  for Y in 0 to: self height do
+    for X in 0 to: self width do
+      self at: new point2d(X, Y);
+    end
+  end
+end
+
+command d5-bitmap draw do
+  let Canvas =
+    for Row in self pixels do
+      let Line =
+        for X in Row do
+          condition
+            when X === 0 => ".";
+            otherwise => X to-text;
+          end
+        end;
+      "[Line as interpolation]\n";
+    end;
+  transcript write: ((Canvas as interpolation) flatten-into-plain-text);
+end
+
+command day5 draw-example do
+  let Lines = day5 parse: day5 example-input | keep-if: (_ is-straight);
+  let Result = day5 make-bitmap: Lines;
+  Result draw;
+end
+
+command day5 draw-example-part2 do
+  let Lines = day5 parse: day5 example-input | keep-if: { L in L is-straight or L is-45-degrees };
+  let Result = day5 make-bitmap: Lines;
+  Result draw;
+end
+
+command day5 make-bitmap: (Lines is list<line>) do
+  let Bounds = Lines fold-from: #rectangle zero with: (_ extend-to: _);
+  let Bitmap = #d5-bitmap width: Bounds width height: Bounds height;
+  let Result = Lines fold-from: Bitmap with: (_ draw-line: _);
+  Result;
+end
+
+command day5 count-dangerous-areas: (Bitmap is d5-bitmap) do
+  let Dangerous =
+    for X in (Bitmap.pixels as list) if X > 1 do X end;
+  Dangerous count;
+end
+
+command day5 part1: (Input is text) do
+  day5 parse: Input
+    |> _ keep-if: (_ is-straight)
+    |> day5 make-bitmap: _
+    |> day5 count-dangerous-areas: _;
+test
+  assert (day5 part1: day5 example-input) === 5
+end
+
+command day5 part1 do
+  day5 part1: day5 input;
+test
+  assert day5 part1 === 8_350;
+end
+
+command day5 part2: (Input is text) do
+  day5 parse: Input
+    |> _ keep-if: { L in L is-straight or L is-45-degrees }
+    |> day5 make-bitmap: _
+    |> day5 count-dangerous-areas: _;
+test
+  assert (day5 part2: day5 example-input) === 12
+end
+
+command day5 part2 do
+  day5 part2: day5 input;
+test
+  assert day5 part2 === 19_374;
+end

@@ -1,7 +1,5 @@
 % crochet
 
-type line(global start is point2d, global stop is point2d);
-
 implement equality for line;
 command line === (That is line) =
   (self start === That start) and (self stop === That stop);
@@ -9,12 +7,112 @@ command line === (That is line) =
 command #line start: (Start is point2d) stop: (Stop is point2d) =
   new line(Start, Stop);
 
-command line is-horizontal =
-  self start x === self stop x;
+command line bounds do
+  let X1 = lesser-of: self start x and: self stop x;
+  let X2 = greater-of: self start x and: self stop x;
+  let Y1 = lesser-of: self start y and: self stop y;
+  let Y2 = greater-of: self start y and: self stop y;
+  #rectangle left: X1 top: Y1 right: X2 bottom: Y2;
+end
 
-command line is-vertical =
-  self start y === self stop y;
+command line slope -> float
+requires
+  non-vertical :: not self is-vertical
+do
+  let Dy = self stop y - self start y;
+  let Dx = self stop x - self start x;
+  condition
+    when Dx === 0 => 0.0;
+    otherwise => Dy / Dx;
+  end
+end
+
+command line is-horizontal do
+  self start y === self stop y
+test
+  assert (new line(new point2d(0, 9), new point2d(2, 9))) is-horizontal;
+  assert not (new line(new point2d(0, 0), new point2d(0, 9))) is-horizontal;
+end
+
+command line is-vertical do
+  self start x === self stop x;
+test
+  assert (new line(new point2d(0, 0), new point2d(0, 9))) is-vertical;
+  assert not (new line(new point2d(0, 9), new point2d(2, 9))) is-vertical;
+end
+
+command line is-45-degrees do
+  condition
+    when self is-straight => false;
+    otherwise => self slope absolute === 1;
+  end
+test
+  assert (new line(new point2d(1, 1), new point2d(3, 3))) is-45-degrees;
+  assert not ((new line(new point2d(1, 1), new point2d(3, 9))) is-45-degrees);
+end
 
 command line is-straight =
   self is-horizontal or self is-vertical;
-  
+
+
+local singleton points;
+
+command points from-y: (Y0 is integer) to-y: (Y1 is integer) x: (X is integer) do
+  for Y in Y0 to: Y1 do
+    new point2d(X, Y);
+  end
+end
+
+command points from-x: (X0 is integer) to-x: (X1 is integer) y: (Y is integer) do
+  for X in X0 to: X1 do
+    new point2d(X, Y);
+  end
+end
+
+command points step-from: (X0 is integer) to: (X1 is integer) do
+  condition
+    when X0 < X1 => 1;
+    when X0 > X1 => -1;
+  end
+end
+
+command points from-x: (X0 is integer) y: (Y0 is integer) to-x: (X1 is integer) y: (Y1 is integer) do
+  let Sx = points step-from: X0 to: X1;
+  let Sy = points step-from: Y0 to: Y1;
+  points start-x: X0 y: Y0 to-x: X1 y: Y1 step-x: Sx y: Sy result: [];
+end
+
+command points reached-start: X0 to: X1 step: S do
+  condition
+    when (S < 0) and (X0 < X1) => true;
+    when (S > 0) and (X0 > X1) => true;
+    otherwise => false;
+  end
+end
+
+command points start-x: X0 y: Y0 to-x: X1 y: Y1 step-x: Sx y: Sy result: Result0 do
+  condition
+    when (points reached-start: X0 to: X1 step: Sx) and (points reached-start: Y0 to: Y1 step: Sy) =>
+      Result0;
+
+    otherwise do
+      let Result = Result0 append: new point2d(X0, Y0);
+      let X0-1 = X0 + Sx;
+      let Y0-1 = Y0 + Sy;
+      points start-x: X0-1 y: Y0-1 to-x: X1 y: Y1 step-x: Sx y: Sy result: Result;
+    end
+  end
+end
+
+command line points do
+  let Bounds = self bounds;
+  let X0 = self start x;
+  let X1 = self stop x;
+  let Y0 = self start y;
+  let Y1 = self stop y;
+  condition
+    when self is-vertical => points from-y: Bounds top to-y: Bounds bottom x: self start x;
+    when self is-horizontal => points from-x: Bounds left to-x: Bounds right y: self start y;
+    when self is-45-degrees => points from-x: X0 y: Y0 to-x: X1 y: Y1;
+  end
+end

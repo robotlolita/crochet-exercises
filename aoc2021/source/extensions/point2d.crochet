@@ -1,7 +1,5 @@
 % crochet
 
-type point2d(global x is numeric, global y is numeric);
-
 implement equality for point2d;
 command point2d === (That is point2d) =
   (self x === That x) and (self y === That y);

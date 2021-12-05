@@ -1,0 +1,23 @@
+% crochet
+
+command integer absolute do
+  condition
+    when self < 0 => self * -1;
+    otherwise => self;
+  end
+test
+  assert 1 absolute === 1;
+  assert -1 absolute === -1;
+  assert 0 absolute === 0;
+end
+
+command float absolute do
+  condition
+    when self < 0 => self * -1;
+    otherwise => self;
+  end
+test
+  assert 1.2 absolute === 1.2;
+  assert -1.2 absolute === -1.2;
+  assert 0.0 absolute === 0.0;
+end

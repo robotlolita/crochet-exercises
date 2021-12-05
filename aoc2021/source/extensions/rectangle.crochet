@@ -1,0 +1,53 @@
+% crochet
+
+implement equality for rectangle;
+command rectangle === (That is rectangle) =
+  (self origin === That origin) and
+  (self width === That width) and
+  (self height === That height);
+
+command #rectangle left: (X1 is numeric) top: (Y1 is numeric) right: (X2 is numeric) bottom: (Y2 is numeric)
+requires
+  non-negative :: (X2 >= X1) and (Y2 >= Y1)
+do
+  new rectangle(X1, Y1, X2 - X1, Y2 - Y1);
+end
+
+command #rectangle origin: (Origin is point2d) width: (Width is numeric) height: (Height is numeric)
+requires
+  non-negative :: (Width >= 0) and (Height >= 0)
+do
+  new rectangle(Origin x, Origin y, Width, Height);
+end
+
+
+command #rectangle top-left: (Origin is point2d) bottom-right: (Destination is point2d) =
+  #rectangle x1: Origin x
+             y1: Origin y
+             x2: Destination x
+             y2: Destination y;
+
+command #rectangle zero =
+  new rectangle(0, 0, 0, 0);
+
+command rectangle right = self left + self width;
+command rectangle bottom = self top + self height;
+command rectangle top-left = new point2d(self left, self top);
+command rectangle top-right = new point2d(self right, self bottom);
+command rectangle bottom-left = new point2d(self left, self bottom);
+command rectangle bottom-right = new point2d(self right, self bottom);
+
+command rectangle extend-to: (Point is point2d)
+requires
+  non-negative :: (Point x >= 0) and (Point y >= 0)
+do
+  #rectangle left: (lesser-of: self left and: Point x)
+             top: (lesser-of: self top and: Point y)
+             right: (greater-of: self right and: Point x)
+             bottom: (greater-of: self bottom and: Point y);
+end
+
+command rectangle extend-to: (Line is line) =
+  self extend-to: Line start
+    | extend-to: Line stop;
+
