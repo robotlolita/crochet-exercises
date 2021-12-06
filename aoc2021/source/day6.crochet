@@ -1,0 +1,173 @@
+% crochet
+
+// A fun one, at last!
+//
+// I originally solved this in the same manner as day 4---with an overarching
+// "game master" that handles all turn-taking and simulation progress. But I
+// decided to rewrite it in a slightly different way.
+//
+// So, Crochet's simulation is a non-deterministic logic thingie that *actually*
+// has turn-taking built-in. When you write:
+//
+//     simulate for [A, B, C] until quiescence;
+//
+// What you're saying is: "Run a simulation where there are three actors: A,
+// B, and C. They will act in this exact order, each one choosing one action
+// in their turn, until no more actions can be chosen."
+//
+// Pretty much like how turn-based JRPG battle systems go (well, not these
+// days, because people have introduced all sorts of "less-turn-based" things
+// to it---but old style JRPG battle systems). So, one other way of expressing
+// this solution is to model each part of this simulation as an independent
+// "actor".
+//
+// So here we define:
+//
+//   - The sprout, which is generation 0 and takes care of creating new
+//     little fishes;
+//
+//   - The nursery, which is a temporary place for fishes to exist while
+//     they're being created (we only really "apply" them at the end of the day);
+//
+//   - The stages, which are how fishes progress in this simulation.
+//
+// We also define a few relations about how each of these actors interact.
+// For example, stages need to know what previous stage their fishes will
+// grow into. And sprouts need to know where the nursery is. And nurseries
+// need to know where the oldest stage and the reset stages are.
+//
+// So the simulation progresses such that first sprout takes an action,
+// then each stage gets its turn, and finally the nursery applies the newly
+// created fishes.
+//
+// This time there's no need to keep track of the elapsed number of days
+// explicitly---each "round" of this simulation is one day. And Crochet
+// exposes these pieces of state (such as number of rounds and number of
+// turns in a round) as "procedural" relations. This means that we can just
+// check for `Days simulation-elapsed-rounds` in our simulation goal.
+//
+// This manages to be a bit faster than keeping the turns ourselves,
+// probably because Crochet first does a filter on the actor type to
+// figure out which actions are possible, before trying to figure out
+// which of those actions are really selectable by the actor. But this
+// is more of a symptom of the VM not doing incremental optimisations on
+// action selection based on database modifications yet!
+
+singleton day6;
+
+// -- We're skipping parsing today yaaaaay!
+type d6m-stage(stage is integer);
+type d6m-sprout;
+type d6m-nursery;
+type d6m-game(global stages is list<stage>, global sprout is d6m-sprout, global nursery is d6m-nursery);
+
+relation Game* d6-stages: Stages*;
+
+relation Stage* d6-previous-stage: Stage;
+relation Nursery* d6-reset-stage: Stage;
+relation Sprout* d6-nursery: Nursery;
+relation Stage-sprout-nursery* d6-fishes: Fishes;
+
+
+command day6 group-fish: Input do
+  Input fold-from: #map empty
+        with: (_ at: _ default: 1 update: (_ + 1));
+test
+  assert (day6 group-fish: [3,4,3,1,2]) ===
+    (#map empty
+      | at: 3 put: 2
+      | at: 4 put: 1
+      | at: 1 put: 1
+      | at: 2 put: 1);
+end
+
+command day6 make-game: Input do
+  let Fishes = day6 group-fish: Input;
+  
+  let Stages = for I in 1 to: 8 do new d6m-stage(I) end;
+  let Sprout = new d6m-sprout;
+  let Nursery = new d6m-nursery;
+  let Game = new d6m-game(Stages, Sprout, Nursery);
+
+  Stages fold-from: Sprout
+         with: { P, S in
+           fact Game d6-stages: S;
+           fact S d6-previous-stage: P;
+           fact S d6-fishes: (Fishes at: S.stage default: 0);
+           S;
+         };
+
+  fact Nursery d6-fishes: 0;
+  fact Nursery d6-previous-stage: (Stages last);
+  fact Nursery d6-reset-stage: (Stages find-first: { S in S.stage === 6 } | value-or-panic: "no stage 6");
+  fact Game d6-stages: Nursery;
+
+  fact Sprout d6-fishes: 0;
+  fact Sprout d6-nursery: Nursery;
+  fact Game d6-stages: Sprout;
+  
+  Game;
+end
+
+context day6 with
+  action (Sprout is d6m-sprout) d6-beget "Fishes beget new fishes"
+  when
+    Sprout d6-fishes: Sprout-fishes,
+    Sprout d6-nursery: Nursery,
+    Nursery d6-fishes: Nursery-fishes
+  do
+    fact Sprout d6-fishes: 0;
+    fact Nursery d6-fishes: (Sprout-fishes + Nursery-fishes);
+  end
+
+  action (Stage is d6m-stage) d6-step "Fishes grow older"
+  when
+    Stage d6-previous-stage: Previous,
+    Stage d6-fishes: Fishes,
+    Previous d6-fishes: Previous-fishes
+  do
+    fact Stage d6-fishes: 0;
+    fact Previous d6-fishes: (Previous-fishes + Fishes);
+  end
+
+  action (Nursery is d6m-nursery) d6-sprout "New fishes are born"
+  when
+    Nursery d6-previous-stage: Oldest-stage,
+    Nursery d6-reset-stage: Reset-stage,
+    Nursery d6-fishes: New-fishes,
+    Oldest-stage d6-fishes: Oldest-fishes,
+    Reset-stage d6-fishes: Reset-fishes
+  do
+    fact Nursery d6-fishes: 0;
+    fact Oldest-stage d6-fishes: (Oldest-fishes + New-fishes);
+    fact Reset-stage d6-fishes: (Reset-fishes + New-fishes);
+  end
+end
+
+command day6 simulate: (Input is list<integer>) max-days: Max-days do
+  let Game = day6 make-game: Input;
+  let Turns = [Game sprout] ++ Game stages ++ [Game nursery];
+  simulate for Turns in day6 until Max-days simulate-rounds-elapsed;
+  (search Game d6-stages: Stage, Stage d6-fishes: Fishes).Fishes sum;
+test
+  assert (day6 simulate: day6 example-input max-days: 18)
+    === 26;
+  assert (day6 simulate: day6 example-input max-days: 80)
+    === 5_934;
+  assert (day6 simulate: day6 example-input max-days: 256)
+    === 26_984_457_539;
+end
+
+command day6 part1 do
+  day6 simulate: day6 input max-days: 80;
+test
+  assert day6 part1 === 365_862;
+end
+
+command day6 part2 do
+  day6 simulate: day6 input max-days: 256;
+test
+  assert day6 part2 === 1_653_250_886_439;
+end
+
+command main-html: _ do end

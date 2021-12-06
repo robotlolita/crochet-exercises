@@ -8,3 +8,18 @@ do
     otherwise => self rest drop: (N - 1);
   end
 end
+
+effect non-local with
+  result(value);
+end
+
+command list find-first: (Predicate is (A -> boolean)) do
+  handle
+    for X in self if Predicate(X) do
+      perform non-local.result(#result ok: X);
+    end
+    #error reason: not-found;
+  with
+    on non-local.result(Value) => Value;
+  end
+end

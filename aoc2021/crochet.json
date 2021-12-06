@@ -23,7 +23,9 @@
     "source/day4-input.crochet",
     "source/day5-grammar.lingua",
     "source/day5.crochet",
-    "source/day5-input.crochet"
+    "source/day5-input.crochet",
+    "source/day6.crochet",
+    "source/day6-input.crochet"
   ],
   "dependencies": [
     "crochet.core",
