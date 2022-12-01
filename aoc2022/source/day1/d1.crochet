@@ -4,6 +4,7 @@ open crochet.debug;
 
 singleton day1;
 
+// -- Part 1
 command day1 example-input =
 "1000
 2000
@@ -113,5 +114,84 @@ end
 command day1 part1 do
   day1 highest-caloric-content: (day1 parse: day1 input);
 test
-  assert day1 part1 === 69_883;
+  assert day1 part1 calories === 69_883;
+end
+
+// -- Part 2
+type d1-sorted-buffer(items is list<A>);
+
+implement equality for d1-sorted-buffer;
+command (A is d1-sorted-buffer) === (B is d1-sorted-buffer) =
+  A.items === B.items;
+
+command #d1-sorted-buffer empty = 
+  new d1-sorted-buffer([]);
+
+command d1-sorted-buffer minimum-calories do
+  condition
+    when self.items count < 3 => 0;
+    otherwise =>
+      self.items map: (_ calories)
+        | minimum;
+  end
+end
+
+command d1-sorted-buffer calories do
+  self.items map: (_ calories)
+    | sum;
+end
+
+command d1-sorted-buffer add: (A is d1-inventory) do
+  condition
+    when A calories > self minimum-calories do
+      let New-items = self.items append: A
+                        | sort-by:{ X, Y in Y calories compare-to: X calories }
+                        | take: 3;
+      new d1-sorted-buffer(New-items);
+    end
+
+    otherwise =>
+      self;
+  end
+test
+  let A = new d1-inventory([
+    new d1-food(1_000),
+    new d1-food(2_000),
+    new d1-food(3_000),
+  ]);
+
+  let B = new d1-inventory([
+    new d1-food(4_000),
+  ]);
+
+  let C = new d1-inventory([
+    new d1-food(5_000),
+    new d1-food(6_000),
+  ]);
+
+  let D = new d1-inventory([
+    new d1-food(7_000),
+    new d1-food(8_000),
+    new d1-food(9_000),
+  ]);
+
+  let B0 = #d1-sorted-buffer empty;
+  let B1 = B0 add: A;
+  assert B1 === new d1-sorted-buffer([A]);
+
+  let B2 = B1 add: B;
+  assert B2 === new d1-sorted-buffer([A, B]);
+
+  let B3 = B2 add: C;
+  assert B3 === new d1-sorted-buffer([C, A, B]);
+
+  let B4 = B3 add: D;
+  assert B4 === new d1-sorted-buffer([D, C, A]);
+end
+
+command day1 part2 do
+  day1 parse: day1 input
+    |> _ fold-from: #d1-sorted-buffer empty with: (_ add: _);
+test
+  assert day1 part2 calories === 207_576;
 end
