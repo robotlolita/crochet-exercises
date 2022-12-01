@@ -1,0 +1,117 @@
+% crochet
+
+open crochet.debug;
+
+singleton day1;
+
+command day1 example-input =
+"1000
+2000
+3000
+
+4000
+
+5000
+6000
+
+7000
+8000
+9000
+
+10000";
+
+implement equality for d1-food;
+command (A is d1-food) === (B is d1-food) =
+  A calories === B calories;
+
+implement equality for d1-inventory;
+command (A is d1-inventory) === (B is d1-inventory) =
+  A.items === B.items;
+
+command d1-food calories =
+  self.calory;
+
+command d1-inventory calories do
+  self.items
+    | map: (_ calories)
+    | sum;
+test
+  assert new d1-inventory([
+    new d1-food(1_000),
+    new d1-food(2_000),
+    new d1-food(3_000)
+  ]) calories
+  === 6_000;
+end
+
+command highest-calory-between: (A is d1-inventory) and: (B is d1-inventory) do
+  condition
+    when A calories >= B calories => A;
+    otherwise => B;
+  end
+test
+  let A = new d1-inventory([
+    new d1-food(1_000),
+    new d1-food(2_000),
+    new d1-food(3_000)
+  ]);
+  let B = new d1-inventory([
+    new d1-food(7_000),
+    new d1-food(8_000),
+    new d1-food(9_000),
+  ]);
+
+  assert (highest-calory-between: A and: B) === B;
+  assert (highest-calory-between: B and: A) === B;
+end
+
+command day1 parse: (Input is text) do
+  d1-grammar parse: Input
+    | value-or-panic: "syntax-error";
+test
+  assert (day1 parse: day1 example-input)
+    === [
+      new d1-inventory([
+        new d1-food(1_000),
+        new d1-food(2_000),
+        new d1-food(3_000),
+      ]),
+
+      new d1-inventory([
+        new d1-food(4_000),
+      ]),
+
+      new d1-inventory([
+        new d1-food(5_000),
+        new d1-food(6_000),
+      ]),
+
+      new d1-inventory([
+        new d1-food(7_000),
+        new d1-food(8_000),
+        new d1-food(9_000),
+      ]),
+
+      new d1-inventory([
+        new d1-food(10_000),
+      ]),
+    ];
+end
+
+command day1 highest-caloric-content: (Inventories is list<d1-inventory>) do
+  Inventories
+    | fold-with: (highest-calory-between: _ and: _);
+test
+  assert (day1 highest-caloric-content: (day1 parse: day1 example-input))
+    === new d1-inventory([
+          new d1-food(7_000),
+          new d1-food(8_000),
+          new d1-food(9_000),
+        ]);
+end
+
+command day1 part1 do
+  day1 highest-caloric-content: (day1 parse: day1 input);
+test
+  assert day1 part1 === 69_883;
+end

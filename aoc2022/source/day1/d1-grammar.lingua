@@ -1,0 +1,22 @@
+type d1_food(calory: integer)
+type d1_inventory(items: food[])
+
+grammar d1_grammar : inventory[] {
+  file =
+    | xs:inventory* end -> xs
+
+  inventory =
+    | xs:nonemptyListOf<food, newline> space* -> d1_inventory(xs)
+
+  food =
+    | n:integer -> d1_food(n)
+
+  integer =
+    | n:t_integer -> @parse_integer(n)
+
+  token t_integer =
+    | digit+
+
+  newline =
+    | "\r\n" | "\n" | "\r"
+}
