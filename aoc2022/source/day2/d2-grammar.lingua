@@ -1,0 +1,45 @@
+type D2_Move =
+  | Rock()
+  | Paper()
+  | Scissors()
+
+type D2_Outcome =
+  | Lose()
+  | Draw()
+  | Win()
+
+type D2_Strategy(elf: D2_Move, you: D2_Move)
+type D2_Goal(elf: D2_Move, you: D2_Outcome)
+
+
+grammar d2_grammar : Strategy[] {
+  part1 =
+    | xs:nonemptyListOf<strategy, newline> end -> xs
+
+  part2 =
+    | xs:nonemptyListOf<goal, newline> end -> xs
+
+  strategy =
+    | e:elf_move hs+ y:your_move -> D2_Strategy(e, y)
+
+  goal =
+    | e:elf_move hs+ y:outcome -> D2_Goal(e, y)
+  
+  elf_move =
+    | "A" -> D2_Move.Rock()
+    | "B" -> D2_Move.Paper()
+    | "C" -> D2_Move.Scissors()
+
+  your_move =
+    | "X" -> D2_Move.Rock()
+    | "Y" -> D2_Move.Paper()
+    | "Z" -> D2_Move.Scissors()
+
+  outcome =
+    | "X" -> D2_Outcome.Lose()
+    | "Y" -> D2_Outcome.Draw()
+    | "Z" -> D2_Outcome.Win()
+
+  hs = " " | "\t"
+  newline = "\r\n" | "\n" | "\r"
+}

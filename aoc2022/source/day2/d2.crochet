@@ -1,0 +1,137 @@
+% crochet
+
+singleton day2;
+
+// Part 1
+command day2 example-input =
+"A Y
+B X
+C Z";
+
+// Equality
+implement equality for d2-move;
+command d2-move === d2-move = false;
+command d2-move--rock === d2-move--rock = true;
+command d2-move--paper === d2-move--paper = true;
+command d2-move--scissors === d2-move--scissors = true;
+
+implement equality for d2-strategy;
+command (A is d2-strategy) === (B is d2-strategy) =
+  (A.elf === B.elf) and (A.you === B.you);
+
+// Scoring
+command d2-move--rock score = 1;
+command d2-move--paper score = 2;
+command d2-move--scissors score = 3;
+
+command score: d2-move--rock against: d2-move--paper = 0;
+command score: d2-move--rock against: d2-move--rock = 3;
+command score: d2-move--rock against: d2-move--scissors = 6;
+
+command score: d2-move--paper against: d2-move--scissors = 0;
+command score: d2-move--paper against: d2-move--paper = 3;
+command score: d2-move--paper against: d2-move--rock = 6;
+
+command score: d2-move--scissors against: d2-move--rock = 0;
+command score: d2-move--scissors against: d2-move--scissors = 3;
+command score: d2-move--scissors against: d2-move--paper = 6;
+
+command d2-strategy score do
+  self.you score + (score: self.you against: self.elf)
+test
+  assert new d2-strategy(d2-move--rock, d2-move--paper) score === 8;
+  assert new d2-strategy(d2-move--paper, d2-move--rock) score === 1;
+  assert new d2-strategy(d2-move--scissors, d2-move--scissors) score === 6;
+end
+
+// Solution
+command day2 parse: Input do
+  d2-grammar parse: Input
+    | value-or-panic: "syntax-error";
+test
+  assert (day2 parse: day2 example-input)
+    === [
+      new d2-strategy(d2-move--rock, d2-move--paper),
+      new d2-strategy(d2-move--paper, d2-move--rock),
+      new d2-strategy(d2-move--scissors, d2-move--scissors)
+    ];
+end
+
+command day2 part1: Input do
+  day2 parse: Input
+    |> _ map: (_ score)
+    |> _ sum;
+test
+  assert (day2 part1: day2 example-input) === 15;
+end
+
+command day2 part1 do
+  day2 part1: day2 input;
+test
+  assert day2 part1 === 13_221;
+end
+
+
+// Part 2
+implement equality for d2-outcome;
+command d2-outcome === d2-outcome = false;
+command d2-outcome--lose === d2-outcome--lose = true;
+command d2-outcome--draw === d2-outcome--draw = true;
+command d2-outcome--win === d2-outcome--win = true;
+
+implement equality for d2-goal;
+command (A is d2-goal) === (B is d2-goal) =
+  (A.elf === B.elf) and (A.you === B.you);
+
+// Deduction
+command guess: d2-outcome--lose from: d2-move--paper = d2-move--rock;
+command guess: d2-outcome--lose from: d2-move--rock = d2-move--scissors;
+command guess: d2-outcome--lose from: d2-move--scissors = d2-move--paper;
+
+command guess: d2-outcome--draw from: (A is d2-move) = A;
+
+command guess: d2-outcome--win from: d2-move--paper = d2-move--scissors;
+command guess: d2-outcome--win from: d2-move--rock = d2-move--paper;
+command guess: d2-outcome--win from: d2-move--scissors = d2-move--rock;
+
+// Scoring
+command d2-outcome--lose score = 0;
+command d2-outcome--draw score = 3;
+command d2-outcome--win score = 6;
+
+command d2-goal score do
+  let Your-move = guess: self.you from: self.elf;
+  Your-move score + self.you score;
+test
+  assert new d2-goal(d2-move--rock, d2-outcome--draw) score === 4;
+  assert new d2-goal(d2-move--paper, d2-outcome--lose) score === 1;
+  assert new d2-goal(d2-move--scissors, d2-outcome--win) score === 7;
+end
+
+// Solution
+command day2 parse-part2: Input do
+  let Tree = d2-grammar grammar parse: Input rule: "part2";
+  let Ast = Tree map: { X in d2-grammar to-ast transform: X };
+  Ast value-or-panic: "syntax-error";
+test
+  assert (day2 parse-part2: day2 example-input)
+    === [
+      new d2-goal(d2-move--rock, d2-outcome--draw),
+      new d2-goal(d2-move--paper, d2-outcome--lose),
+      new d2-goal(d2-move--scissors, d2-outcome--win)
+    ];
+end
+
+command day2 part2: Input do
+  day2 parse-part2: Input
+    |> _ map: (_ score)
+    |> _ sum;
+test
+  assert (day2 part2: day2 example-input) === 12;
+end
+
+command day2 part2 do
+  day2 part2: day2 input;
+test
+  assert day2 part2 === 13_131;
+end

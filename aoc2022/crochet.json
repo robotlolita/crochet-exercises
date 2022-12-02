@@ -5,7 +5,10 @@
   "sources": [
     "source/day1/d1-grammar.lingua",
     "source/day1/d1.crochet",
-    "source/day1/d1-input.crochet"
+    "source/day1/d1-input.crochet",
+    "source/day2/d2-grammar.lingua",
+    "source/day2/d2.crochet",
+    "source/day2/d2-input.crochet"
   ],
   "dependencies": [
     "crochet.core",
