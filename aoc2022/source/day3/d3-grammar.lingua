@@ -1,0 +1,20 @@
+type D3_Item =
+  | Lowercase(value: Text)
+  | Uppercase(value: Text)
+
+type D3_Packed(items: D3_Item[])
+
+
+grammar d3_grammar : D3_Rucksack[] {
+  part1 =
+    | xs:nonemptyListOf<rucksack, newline> end -> xs
+
+  rucksack =
+    | xs:item+ -> D3_Packed(xs)
+
+  item =
+    | x:("a".."z") -> D3_Item.Lowercase(x)
+    | x:("A".."Z") -> D3_Item.Uppercase(x)
+
+  newline = "\r\n" | "\r" | "\n"
+}

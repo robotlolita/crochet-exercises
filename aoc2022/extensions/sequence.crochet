@@ -1,0 +1,22 @@
+% crochet
+
+command (X has sequence, appendable-sequence, countable-container) chunks-of-size: (Size is integer) do
+  let Chunks = (X count / Size) ceiling as integer;
+  let Go = { N, X, Result in
+    condition
+      when N === 0 => Result;
+      otherwise => Go(N - 1, X drop: Size, Result append: (X take: Size));
+    end
+  };
+  Go(Chunks, X, []);
+test
+  assert ([] chunks-of-size: 2) === [];
+  assert ([1] chunks-of-size: 2) === [[1]];
+  assert ([1, 2] chunks-of-size: 2) === [[1, 2]];
+  assert ([1, 2, 3, 4, 5, 6, 7] chunks-of-size: 2) === [
+    [1, 2],
+    [3, 4],
+    [5, 6],
+    [7]
+  ];
+end

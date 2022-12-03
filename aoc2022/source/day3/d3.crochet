@@ -1,0 +1,186 @@
+% crochet
+
+singleton day3;
+
+// Part 1
+command day3 example-input =
+"vJrwpWtwJgWrhcsFMMfFFhFp
+jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+PmmdzqPrVvPwwTWBwg
+wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+ttgJtRGJQctTZtZT
+CrZsJsPPZsGzwwsLwLmpwMDw";
+
+implement equality for d3-item;
+command d3-item === d3-item = false;
+command (A is d3-item--lowercase) === (B is d3-item--lowercase) = A.value =:= B.value;
+command (A is d3-item--uppercase) === (B is d3-item--uppercase) = A.value =:= B.value;
+
+implement equality for d3-packed;
+command (A is d3-packed) === (B is d3-packed) = A.items === B.items;
+
+// (Unfortunately, hashmaps in Crochet do not support custom hashing yet!)
+type d3-rucksack(global left is map<text, d3-entry>, global right is map<text, d3-entry>);
+type d3-entry(global item is d3-item, global count is integer);
+
+implement equality for d3-rucksack;
+command (A is d3-rucksack) === (B is d3-rucksack) = (A.left === B.left) and (A.right === B.right);
+command (A is d3-entry) === (B is d3-entry) = (A.item === B.item) and (A.count === B.count);
+
+// Priorities
+command d3-item--lowercase id = self.value;
+command d3-item--uppercase id = self.value;
+
+local define lowercase-a-code = lazy ("a" unicode-code-points first);
+local define uppercase-a-code = lazy ("A" unicode-code-points first);
+
+command d3-item--lowercase priority =
+  (self.value unicode-code-points first - (force lowercase-a-code)) + 1
+test
+  assert new d3-item--lowercase("a") priority === 1;
+  assert new d3-item--lowercase("z") priority === 26;
+end
+
+command d3-item--uppercase priority =
+  (self.value unicode-code-points first - (force uppercase-a-code)) + 27
+test
+  assert new d3-item--uppercase("A") priority === 27;
+  assert new d3-item--uppercase("Z") priority === 52;
+end
+
+// Parsing
+command day3 parse: Input do
+  d3-grammar parse: Input
+    | value-or-panic: "syntax-error";
+end
+
+// Packing
+command #d3-entry from: (X is d3-item) =
+  new d3-entry(item -> X, count -> 1);
+
+command #d3-rucksack from: (Pack is d3-packed) do
+  let Size = Pack.items count;
+  let Midpoint = Size divided-by: 2;
+  let Insert = { Map, Item in
+    Map at: Item id
+        default: (#d3-entry from: Item)
+        update: { Entry in new d3-entry(Entry with count -> Entry count + 1) };
+  };
+  let Left = Pack.items take: Midpoint
+              | fold-from: #map empty with: Insert;
+  let Right = Pack.items drop: Midpoint
+                | fold-from: #map empty with: Insert;
+  new d3-rucksack(left -> Left, right -> Right);
+test
+  let Pack = day3 parse: "vJrwpWtwJgWrhcsFMMfFFhFp" | first;
+  let Rucksack = #d3-rucksack from: Pack;
+  assert [
+    #set from: Rucksack left keys,
+    #set from: Rucksack right keys,
+  ] === [
+    #set from: ["v", "J", "r", "w", "p", "W", "t", "w", "J", "g", "W", "r"],
+    #set from: ["h", "c", "s", "F", "M", "M", "f", "F", "F", "h", "F", "p"],
+  ];
+end
+
+command d3-rucksack incorrectly-packed do
+  let Left = #set from: self left keys;
+  let Right = #set from: self right keys;
+  let Duplicates = Left intersection: Right | values;
+  [
+    left -> Duplicates map: { X in self left at: X },
+    right -> Duplicates map: { X in self right at: X }
+  ]
+test
+  let Pack = day3 parse: "vJrwpWtwJgWrhcsFMMfFFhFp" | first;
+  let Rucksack = #d3-rucksack from: Pack;
+  let Duplicates = Rucksack incorrectly-packed;
+  assert [Duplicates.left, Duplicates.right] === [
+    [
+      new d3-entry(item -> new d3-item--lowercase("p"), count -> 1)
+    ],
+    [
+      new d3-entry(item -> new d3-item--lowercase("p"), count -> 1)
+    ]
+  ];
+end
+
+command d3-rucksack incorrectly-packed-priority do
+  (self incorrectly-packed).left
+    | map: { X in X item priority }
+    | sum;
+test
+  let Pack = day3 parse: "vJrwpWtwJgWrhcsFMMfFFhFp" | first;
+  let Rucksack = #d3-rucksack from: Pack;
+  assert Rucksack incorrectly-packed-priority === 16;  
+end
+
+command day3 part1: Input do
+  day3 parse: Input
+    |> _ map: (#d3-rucksack from: _)
+    |> _ map: (_ incorrectly-packed-priority)
+    |> _ sum;
+test
+  assert (day3 part1: day3 example-input) === 157;
+end
+
+command day3 part1 do
+  day3 part1: day3 input;
+test
+  assert day3 part1 === 7_826;
+end
+
+
+// Part 2
+command #d3-item from: (Id is text) do
+  d3-grammar grammar parse: Id rule: "item"
+    |> _ map: { X in d3-grammar to-ast transform: X }
+    |> _ value-or-panic: "syntax-error";
+test
+  assert (#d3-item from: "a") === new d3-item--lowercase("a");
+  assert (#d3-item from: "F") === new d3-item--uppercase("F");
+end
+
+type d3-elf-group(
+  global rucksacks is list<d3-rucksack>,
+  global badge is d3-item,
+);
+
+command #d3-elf-group from: (Rucksacks is list<d3-rucksack>)
+requires
+  party-of-three :: Rucksacks count === 3
+do
+  let Keys = Rucksacks map: { X in #set from: (X left keys ++ X right keys) };
+  let Common-in-all = Keys fold-with: (_ intersection: _);
+  assert Common-in-all count === 1;
+
+  new d3-elf-group(
+    rucksacks -> Rucksacks,
+    badge -> #d3-item from: (Common-in-all values first)
+  );
+test
+  let Packs = day3 parse: "vJrwpWtwJgWrhcsFMMfFFhFp
+jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+PmmdzqPrVvPwwTWBwg";
+  let Rucksacks = Packs map: (#d3-rucksack from: _);
+  let Group = #d3-elf-group from: Rucksacks;
+  assert Group badge === new d3-item--lowercase("r");
+end
+
+command day3 part2: Input do
+  day3 parse: Input
+    |> _ map: (#d3-rucksack from: _)
+    |> _ chunks-of-size: 3
+    |> _ map: (#d3-elf-group from: _)
+    |> _ map: (_ badge)
+    |> _ map: (_ priority)
+    |> _ sum;
+test
+  assert (day3 part2: day3 example-input) === 70;
+end
+
+command day3 part2 do
+  day3 part2: day3 input;
+test
+  assert day3 part2 === 2_577;
+end

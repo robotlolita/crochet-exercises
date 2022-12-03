@@ -3,12 +3,16 @@
   "target": "*",
   "native_sources": [],
   "sources": [
+    "extensions/sequence.crochet",
     "source/day1/d1-grammar.lingua",
     "source/day1/d1.crochet",
     "source/day1/d1-input.crochet",
     "source/day2/d2-grammar.lingua",
     "source/day2/d2.crochet",
-    "source/day2/d2-input.crochet"
+    "source/day2/d2-input.crochet",
+    "source/day3/d3-grammar.lingua",
+    "source/day3/d3.crochet",
+    "source/day3/d3-input.crochet"
   ],
   "dependencies": [
     "crochet.core",

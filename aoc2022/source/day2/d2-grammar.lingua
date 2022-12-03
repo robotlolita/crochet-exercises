@@ -12,7 +12,7 @@ type D2_Strategy(elf: D2_Move, you: D2_Move)
 type D2_Goal(elf: D2_Move, you: D2_Outcome)
 
 
-grammar d2_grammar : Strategy[] {
+grammar d2_grammar : D2_Strategy[] {
   part1 =
     | xs:nonemptyListOf<strategy, newline> end -> xs
 
