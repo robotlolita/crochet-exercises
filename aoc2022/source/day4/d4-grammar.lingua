@@ -1,0 +1,21 @@
+type D4_Range(start: Integer, stop: Integer)
+type D4_Pair(first: D4_Range, second: D4_Range)
+
+grammar d4_grammar : D4_Pair[] {
+  part1 =
+    | xs:nonemptyListOf<pair, newline> end -> xs
+
+  pair =
+    | a:range "," b:range -> D4_Pair(a, b)
+
+  range =
+    | a:integer "-" b:integer -> D4_Range(a, b)
+
+  integer =
+    | x:t_integer -> @parse_integer(x)
+
+  token t_integer =
+    | digit+
+
+  token newline = "\r\n" | "\n" | "\r"
+}

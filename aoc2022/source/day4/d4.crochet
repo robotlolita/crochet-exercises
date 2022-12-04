@@ -1,0 +1,95 @@
+% crochet
+
+singleton day4;
+
+// Part 1
+command day4 example-input =
+  "2-4,6-8
+2-3,4-5
+5-7,7-9
+2-8,3-7
+6-6,4-6
+2-6,4-8";
+
+implement equality for d4-range;
+command (A is d4-range) === (B is d4-range) =
+  (A.start === B.start) and (A.stop === B.stop);
+
+implement equality for d4-pair;
+command (A is d4-pair) === (B is d4-pair) =
+  (A.first === B.first) and (A.second === B.second);
+
+
+// Parsing
+command day4 parse: Input do
+  d4-grammar parse: Input
+    | value-or-panic: "syntax-error";
+test
+  assert (day4 parse: day4 example-input) === [
+    new d4-pair(new d4-range(2, 4), new d4-range(6, 8)),
+    new d4-pair(new d4-range(2, 3), new d4-range(4, 5)),
+    new d4-pair(new d4-range(5, 7), new d4-range(7, 9)),
+    new d4-pair(new d4-range(2, 8), new d4-range(3, 7)),
+    new d4-pair(new d4-range(6, 6), new d4-range(4, 6)),
+    new d4-pair(new d4-range(2, 6), new d4-range(4, 8)),
+  ];
+end
+
+// Overlapping
+command (A is d4-range) fully-contains: (B is d4-range) do
+  (B.start >= A.start) and (B.stop <= A.stop);
+test
+  assert not (new d4-range(2, 4) fully-contains: new d4-range(6, 8));
+  assert not (new d4-range(2, 3) fully-contains: new d4-range(4, 5));
+  assert not (new d4-range(5, 7) fully-contains: new d4-range(7, 9));
+  assert (new d4-range(2, 8) fully-contains: new d4-range(3, 7));
+  assert (new d4-range(4, 6) fully-contains: new d4-range(6, 6));
+  assert not (new d4-range(2, 6) fully-contains: new d4-range(4, 8));  
+end
+
+command d4-pair ranges-are-fully-contained =
+  (self.first fully-contains: self.second) or (self.second fully-contains: self.first);
+
+// Solution
+command day4 part1: Input do
+  day4 parse: Input
+    |> _ keep-if: (_ ranges-are-fully-contained)
+    |> _ count
+test
+  assert (day4 part1: day4 example-input) === 2;
+end
+
+command day4 part1 do
+  day4 part1: day4 input;
+test
+  assert day4 part1 === 571;
+end
+
+// Part 2
+command (A is d4-range) overlaps-with: (B is d4-range) do
+  (greater-of: A.start and: B.start) <= (lesser-of: A.stop and: B.stop)
+test
+  assert not (new d4-range(2, 4) overlaps-with: new d4-range(6, 8));
+  assert not (new d4-range(2, 3) overlaps-with: new d4-range(4, 5));
+  assert (new d4-range(5, 7) overlaps-with: new d4-range(7, 9));
+  assert (new d4-range(2, 8) overlaps-with: new d4-range(3, 7));
+  assert (new d4-range(6, 6) overlaps-with: new d4-range(4, 6));
+  assert (new d4-range(2, 6) overlaps-with: new d4-range(4, 8));
+end
+
+command d4-pair overlaps =
+  self.first overlaps-with: self.second;
+
+command day4 part2: Input do
+  day4 parse: Input
+    |> _ keep-if: (_ overlaps)
+    |> _ count
+test
+  assert (day4 part2: day4 example-input) === 4;
+end
+
+command day4 part2 do
+  day4 part2: day4 input;
+test
+  assert day4 part2 === 917;
+end
