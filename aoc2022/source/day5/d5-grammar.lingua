@@ -1,0 +1,63 @@
+type D5_Crates(rows: D5_Row[])
+type D5_Row(crates: D5_Crate[])
+type D5_Crate(position: Interval, id: Text)
+
+type D5_Headers(items: D5_Header[])
+type D5_Header(position: Interval, id: Integer)
+
+type D5_Instruction =
+  | Move(quantity: Integer, from: Integer, to: Integer)
+
+type D5_Program(instructions: D5_Instruction[])
+
+type D5_Image(
+  headers: D5_Headers,
+  crates: D5_Crates,
+  program: D5_Program
+)
+
+grammar d5_grammar : D5_Image {
+  Part1 =
+    | newline* r:Crates newline* h:Headers newline* p:Program newline* end   -> D5_Image(h, r, p)
+
+  // Layout
+  Crates =
+    | xs:NonemptyListOf<Crate_row, newline>   -> D5_Crates(xs)
+
+  Crate_row =
+    | xs:Crate+   -> D5_Row(xs)
+
+  Crate =
+    | "{" n:name "}"    -> D5_Crate(meta, n)
+
+  Headers =
+    | xs:Header+  -> D5_Headers(xs)
+
+  Header =
+    | n:integer   -> D5_Header(meta, n)
+
+  
+  // Instructions
+  Program =
+    | xs:NonemptyListOf<Instruction, newline>   -> D5_Program(xs)
+
+  Instruction =
+    | move_ n:integer from_ a:integer to_ b:integer   -> D5_Instruction.Move(n, a, b)
+
+  
+  // Lexical rules
+  token newline = "\r\n" | "\n" | "\r"
+  token space := " " | "\t"
+
+  token t_integer = digit+
+  integer = n:t_integer -> @parse_integer(n)
+
+  token ascii_letter = "A".."Z"
+  token t_name = ascii_letter+
+  name = t_name
+
+  kw<x> = v:x ~(letter | digit)   -> v
+  move_ = kw<"move">
+  from_ = kw<"from">
+  to_ = kw<"to">
+}

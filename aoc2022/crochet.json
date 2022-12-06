@@ -12,7 +12,12 @@
     "source/day2/d2-input.crochet",
     "source/day3/d3-grammar.lingua",
     "source/day3/d3.crochet",
-    "source/day3/d3-input.crochet"
+    "source/day3/d3-input.crochet",
+    "source/day4/d4-grammar.lingua",
+    "source/day4/d4.crochet",
+    "source/day4/d4-input.crochet",
+    "source/day5/d5-grammar.lingua",
+    "source/day5/d5.crochet"
   ],
   "dependencies": [
     "crochet.core",

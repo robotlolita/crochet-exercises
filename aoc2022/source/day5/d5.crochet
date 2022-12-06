@@ -1,0 +1,248 @@
+% crochet
+
+open crochet.text.parsing.lingua;
+
+singleton day5;
+
+// Part 1
+command day5 example-input =
+"
+     {D}    
+ {N} {C}    
+ {Z} {M} {P}
+  1   2   3 
+
+move 1 from 2 to 1
+move 3 from 1 to 3
+move 2 from 2 to 1
+move 1 from 1 to 2";
+
+@| derive: "equality"
+type d5-column(
+  global id is integer,
+  global crates is list<d5-resolved-crate>,
+);
+
+@| derive: "equality"
+type d5-resolved-crate(
+  global id is text,
+);
+
+@| derive: "equality"
+type d5-layout(
+  global columns is list<d5-column>
+);
+
+implement equality for d5-crates;
+command (A is d5-crates) === (B is d5-crates) =
+  A.rows === B.rows;
+
+implement equality for d5-row;
+command (A is d5-row) === (B is d5-row) =
+  A.crates === B.crates;
+
+implement equality for d5-crate;
+command (A is d5-crate) === (B is d5-crate) =
+  (A.position === B.position)
+    and (A.id =:= B.id);
+
+implement equality for d5-headers;
+command (A is d5-headers) === (B is d5-headers) =
+  A.items === B.items;
+
+implement equality for d5-header;
+command (A is d5-header) === (B is d5-header) =
+  (A.position === B.position);
+
+implement equality for d5-instruction;
+command d5-instruction === d5-instruction = false;
+command (A is d5-instruction--move) === (B is d5-instruction--move) =
+  (A.quantity === B.quantity)
+    and (A.from === B.from)
+    and (A.to === B.to);
+
+implement equality for d5-program;
+command (A is d5-program) === (B is d5-program) =
+  A.instructions === B.instructions;
+
+implement equality for d5-image;
+command (A is d5-image) === (B is d5-image) =
+  (A.headers === B.headers)
+    and (A.crates === B.crates)
+    and (A.program === B.program);
+
+// Parsing
+command day5 parse: Input do
+  d5-grammar parse: Input
+    | value-or-panic: "syntax-error";
+end
+
+// Bootstrapping phase (resolving references from the parser)
+command #d5-layout bootstrap: (Image is d5-image) do
+  let Columns = Image.headers.items map: (#d5-column header: _ rows: Image.crates);
+  new d5-layout(Columns);
+test
+  assert (#d5-layout bootstrap: (day5 parse: day5 example-input))
+    ===
+    new d5-layout([
+      new d5-column(1, [
+        new d5-resolved-crate("N"),
+        new d5-resolved-crate("Z"),
+      ]),
+      new d5-column(2, [
+        new d5-resolved-crate("D"),
+        new d5-resolved-crate("C"),
+        new d5-resolved-crate("M"),
+      ]),
+      new d5-column(3, [
+        new d5-resolved-crate("P"),
+      ])
+    ]);
+end
+
+command #d5-column header: Header rows: (Rows is d5-crates) do
+  let Crates = Rows.rows flat-map: (_ crates-at-column: Header);
+  new d5-column(
+    id -> Header.id,
+    crates -> Crates,
+  );
+end
+
+command d5-row crates-at-column: (Header is d5-header) do
+  self.crates keep-if: (_ is-at-column: Header)
+    | map: { C in new d5-resolved-crate(C.id) };
+end
+
+command d5-crate is-at-column: (Column is d5-header) do
+  self.position position column === (Column.position position column - day5 crate-source-padding);
+end
+
+// Crates start at the name, but they're surrounded by `[]`
+command day5 crate-source-padding = 1;
+
+// Solution
+abstract d5-vm;
+type d5-vm1(global layout is d5-layout, global program is d5-program) is d5-vm;
+
+command #d5-vm1 bootstrap: Image =
+  new d5-vm1(#d5-layout bootstrap: Image, Image.program);
+
+command d5-vm1 step: (M is d5-instruction--move) do
+  let Source-tower = self layout columns at: M.from;
+  let Crates = Source-tower crates take: M.quantity | reverse;
+  let Target-tower = self layout columns at: M.to;
+
+  new d5-vm1(
+    self with
+    layout ->
+      new d5-layout(
+        self layout columns
+          | at: M.from put: (new d5-column(Source-tower with crates -> Source-tower crates drop: M.quantity))
+          | at: M.to put: (new d5-column(Target-tower with crates -> Crates ++ Target-tower crates))
+      )
+  );
+end
+
+command d5-vm run =
+  (self program).instructions fold-from: self with: (_ step: _);
+
+test "Part 1 execution" do
+  let Image = day5 parse: day5 example-input;
+  assert (#d5-vm1 bootstrap: Image | run | layout) === new d5-layout([
+    new d5-column(1, [
+      new d5-resolved-crate("C"),
+    ]),
+    new d5-column(2, [
+      new d5-resolved-crate("M"),
+    ]),
+    new d5-column(3, [
+      new d5-resolved-crate("Z"),
+      new d5-resolved-crate("N"),
+      new d5-resolved-crate("D"),
+      new d5-resolved-crate("P"),
+    ])
+  ]);
+end
+
+command d5-vm message =
+  self layout message;
+
+command d5-layout message =
+  self columns map: (_ message)
+    | as interpolation
+    | flatten-into-plain-text;
+
+command d5-column message =
+  self crates first id;
+
+command day5 part1: Input do
+  day5 parse: Input
+    |> #d5-vm1 bootstrap: _
+    |> _ run
+    |> _ layout
+    |> _ message;
+test
+  assert (day5 part1: day5 example-input) =:= "CMZ";
+end
+
+command day5 part1 do
+  day5 part1: day5 input;
+test
+  assert day5 part1 =:= "RTGWZTHLD";
+end
+
+// Part 2
+type d5-vm2(global layout is d5-layout, global program is d5-program) is d5-vm;
+
+command #d5-vm2 bootstrap: Image =
+  new d5-vm2(#d5-layout bootstrap: Image, Image.program);
+
+command d5-vm2 step: (M is d5-instruction--move) do
+  let Source-tower = self layout columns at: M.from;
+  let Crates = Source-tower crates take: M.quantity;
+  let Target-tower = self layout columns at: M.to;
+
+  new d5-vm2(
+    self with
+    layout ->
+      new d5-layout(
+        self layout columns
+          | at: M.from put: (new d5-column(Source-tower with crates -> Source-tower crates drop: M.quantity))
+          | at: M.to put: (new d5-column(Target-tower with crates -> Crates ++ Target-tower crates))
+      )
+  );
+end
+
+test "Part 2 execution" do
+  let Image = day5 parse: day5 example-input;
+  assert (#d5-vm2 bootstrap: Image | run | layout) === new d5-layout([
+    new d5-column(1, [
+      new d5-resolved-crate("M"),
+    ]),
+    new d5-column(2, [
+      new d5-resolved-crate("C"),
+    ]),
+    new d5-column(3, [
+      new d5-resolved-crate("D"),
+      new d5-resolved-crate("N"),
+      new d5-resolved-crate("Z"),
+      new d5-resolved-crate("P"),
+    ])
+  ]);
+end
+
+command day5 part2: Input do
+  day5 parse: Input
+    |> #d5-vm2 bootstrap: _
+    |> _ run
+    |> _ layout
+    |> _ message;
+test
+  assert (day5 part2: day5 example-input) =:= "MCD";
+end
+
+command day5 part2 do
+  day5 part2: day5 input;
+test
+  assert day5 part2 =:= "STHGRZZFR";
+end
