@@ -1,9 +1,13 @@
 {
   "name": "me.robotlolita.aoc2022",
   "target": "*",
-  "native_sources": [],
+  "native_sources": [
+    "native/text.js"
+  ],
   "sources": [
     "extensions/sequence.crochet",
+    "extensions/text.crochet",
+    "extensions/stream.crochet",
     "source/day1/d1-grammar.lingua",
     "source/day1/d1.crochet",
     "source/day1/d1-input.crochet",
@@ -17,7 +21,10 @@
     "source/day4/d4.crochet",
     "source/day4/d4-input.crochet",
     "source/day5/d5-grammar.lingua",
-    "source/day5/d5.crochet"
+    "source/day5/d5.crochet",
+    "source/day5/d5-input.crochet",
+    "source/day6/d6.crochet",
+    "source/day6/d6-input.crochet"
   ],
   "dependencies": [
     "crochet.core",
@@ -25,7 +32,7 @@
     "crochet.text.parsing.lingua"
   ],
   "capabilities": {
-    "requires": [],
+    "requires": ["native"],
     "provides": []
   }
 }

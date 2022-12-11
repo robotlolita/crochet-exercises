@@ -1,0 +1,9 @@
+% crochet
+
+command linked-stream-empty collect-fold-from: (State is B) with: (Combine is ((A, Value) -> A)) =
+  #linked-stream from: [State];
+
+command linked-stream-cons collect-fold-from: (State is B) with: (Combine is ((A, Value) -> A)) do
+  let Result = Combine(State, self first);
+  #linked-stream cons: Result and: (lazy self rest collect-fold-from: Result with: Combine);
+end

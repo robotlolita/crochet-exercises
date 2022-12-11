@@ -1,0 +1,139 @@
+% crochet
+
+singleton day6;
+
+// Part 1
+type d6-marker-identifier(
+  global seen is map<text, integer>,
+  global buffer is list<text>,
+  global processed is integer,
+  global buffer-size is integer
+);
+
+implement equality for d6-marker-identifier;
+command (A is d6-marker-identifier) === (B is d6-marker-identifier) =
+  (A seen === B seen)
+    and (A buffer === B buffer)
+    and (A processed === B processed)
+    and (A buffer-size === B buffer-size);
+
+command #d6-marker-identifier with-size: (Size is integer)
+requires
+  positive :: Size > 0
+do
+  new d6-marker-identifier(
+    seen -> #map empty,
+    buffer -> [],
+    processed -> 0,
+    buffer-size -> Size
+  );
+end
+
+command d6-marker-identifier consume: (Character is text) do
+  self maybe-discard-oldest
+    |> _ buffer: Character
+test
+  let S0 = #d6-marker-identifier with-size: 4
+             | consume: "m"
+             | consume: "j"
+             | consume: "q";
+  assert S0 === new d6-marker-identifier(
+    seen -> #map from: ["m" -> 1, "j" -> 1, "q" -> 1],
+    buffer -> ["m", "j", "q"],
+    processed -> 3,
+    buffer-size -> 4
+  );
+
+  let S1 = S0 consume: "j";
+  assert S1 === new d6-marker-identifier(
+    seen -> #map from: ["m" -> 1, "j" -> 2, "q" -> 1],
+    buffer -> ["m", "j", "q", "j"],
+    processed -> 4,
+    buffer-size -> 4
+  );
+
+  let S2 = S1 consume: "p";
+  assert S2 === new d6-marker-identifier(
+    seen -> #map from: ["j" -> 2, "q" -> 1, "p" -> 1],
+    buffer -> ["j", "q", "j", "p"],
+    processed -> 5,
+    buffer-size -> 4
+  );
+end
+
+command d6-marker-identifier maybe-discard-oldest do
+  condition
+    when self buffer count < self buffer-size => self;
+    otherwise do
+      let Dropped = self buffer first;
+      let Seen-count = self seen at: Dropped;
+      let Seen = condition
+                   when Seen-count === 1 => self seen remove-at: Dropped;
+                   when Seen-count > 1 => self seen at: Dropped update: (_ - 1);
+                 end;
+      new d6-marker-identifier(
+        self with
+          seen -> Seen,
+          buffer -> self buffer drop: 1,
+      );
+    end
+  end
+end
+
+command d6-marker-identifier buffer: (Character is text)
+requires
+  not-full :: self buffer count < self buffer-size
+do
+  new d6-marker-identifier(
+    self with
+      seen -> self seen at: Character default: 1 update: (_ + 1),
+      buffer -> self buffer append: Character,
+      processed -> self processed + 1,
+  );
+end
+
+command d6-marker-identifier is-marker do
+  self seen count === self buffer-size;
+end
+
+// Part 1
+command day6 part1: Input do
+  Input unicode-characters as stream
+    |> _ collect-fold-from: (#d6-marker-identifier with-size: 4) with: (_ consume: _)
+    |> _ drop-while: { X in not X is-marker }
+    |> _ first
+    |> _ processed
+test
+  assert (day6 part1: "mjqjpqmgbljsphdztnvjfqwrcgsmlb") === 7;
+  assert (day6 part1: "bvwbjplbgvbhsrlpgdmjqwftvncz") === 5;
+  assert (day6 part1: "nppdvjthqldpwncqszvftbrmjlhg") === 6;
+  assert (day6 part1: "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg") === 10;
+  assert (day6 part1: "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw") === 11;
+end
+
+command day6 part1 do
+  day6 part1: day6 input;
+test
+  assert day6 part1 === 1_042;
+end
+
+// Part 2
+command day6 part2: Input do
+  Input unicode-characters as stream
+    |> _ collect-fold-from: (#d6-marker-identifier with-size: 14) with: (_ consume: _)
+    |> _ drop-while: { X in not X is-marker }
+    |> _ first
+    |> _ processed
+test
+  assert (day6 part2: "mjqjpqmgbljsphdztnvjfqwrcgsmlb") === 19;
+  assert (day6 part2: "bvwbjplbgvbhsrlpgdmjqwftvncz") === 23;
+  assert (day6 part2: "nppdvjthqldpwncqszvftbrmjlhg") === 23;
+  assert (day6 part2: "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg") === 29;
+  assert (day6 part2: "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw") === 26;
+end
+
+command day6 part2 do
+  day6 part2: day6 input;
+test
+  assert day6 part2 === 2_980;
+end

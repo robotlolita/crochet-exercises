@@ -1,0 +1,7 @@
+% crochet
+
+command text unicode-characters do
+  foreign text.characters(self);
+test
+  assert "abc❤🌹✨" characters === ["a", "b", "c", "❤", "🌹", "✨"];
+end
